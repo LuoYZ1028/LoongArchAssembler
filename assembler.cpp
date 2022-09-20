@@ -1,0 +1,593 @@
+#include "assembler.h"
+
+Assembler::Assembler(){
+
+}
+
+int Assembler::matchType(QString name, int mode){
+    // name已做过小写转换
+    if (mode == INST_MODE) {
+        for (int i = 0; i < 8; i++) {
+            int upbound = inst_type_num[i];
+            for (int j = 0; j < upbound; j++) {
+                switch (i)
+                {
+                case 0:
+                    if (_3RType[j] == name)
+                        return _3R;
+                    break;
+                case 1:
+                    if (_2RType[j] == name)
+                        return _2R;
+                    break;
+                case 2:
+                    if (_2R_I8Type[j] == name)
+                        return _2R_I8;
+                    break;
+                case 3:
+                    if (_2R_I12Type[j] == name)
+                        return _2R_I12;
+                    break;
+                case 4:
+                    if (_2R_I14Type[j] == name)
+                        return _2R_I14;
+                    break;
+                case 5:
+                    if (_2R_I16Type[j] == name)
+                        return _2R_I16;
+                    break;
+                case 6:
+                    if (_1R_I20Type[j] == name)
+                        return _1R_I20;
+                    break;
+                case 7:
+                    if (_2RType[j] == name)
+                        return _BAR;
+                    break;
+                default:
+                    return TYPE_ERROR;
+                }
+            }
+        }
+        return TYPE_ERROR;
+    } else if (mode == DATA_MODE) {
+        if (name == ".asciz")
+            return ASCIZ;
+        else if (name == ".word")
+            return WORD;
+        else if (name == ".space")
+            return SPACE;
+        else
+            return TYPE_ERROR;
+    }
+    return TYPE_ERROR;
+}
+
+/*---------------------------------------------*/
+/* 负责把指令分发到对应的处理函数
+ */
+QString Assembler::asm2Machine(instruction input) {
+    QString result;
+    switch(input.type)
+    {
+    case _3R:       valid++;    result = _3RTypeASM(input); break;
+    case _2R:       valid++;    result = _2RTypeASM(input); break;
+    case _2R_I8:    valid++;    result = _2RI8TypeASM(input); break;
+    case _2R_I12:   valid++;    result = _2RI12TypeASM(input); break;
+    case _2R_I14:   valid++;    result = _2RI14TypeASM(input); break;
+    case _2R_I16:   valid++;    result = _2RI16TypeASM(input, valid); break;
+    case _1R_I20:   valid++;    result = _1RI20TypeASM(input); break;
+    case _BAR:      valid++;    result = _BARTypeASM(input); break;
+    default:                    result =  "UNKNOWN_ERROR"; break;
+    }
+    return result;
+}
+
+QString Assembler::_3RTypeASM(instruction input) {
+    QList<QString>value;
+    value = input.valueline.split(",");
+
+    QList<QString>tmp;
+    int value_num = value.size();
+    // 将注释内容删去
+    QString str = value[value_num - 1].remove(QRegExp("\\s"));
+    tmp = str.split("#");
+    value[value_num - 1] = tmp[0];
+
+    QString op,rd,rj,rk,code;
+    bool isinterrupt = false;
+
+    // 3R类型指令opcode占17bit，默认全0
+    op = "00000000000000000";
+    if (input.inst_name == "add.w")
+        op = "00000000000100000";
+    else if (input.inst_name == "sub.w")
+        op = "00000000000100010";
+    else if (input.inst_name == "slt")
+        op = "00000000000100100";
+    else if (input.inst_name == "sltu")
+        op = "00000000000100101";
+    else if (input.inst_name == "nor")
+        op = "00000000000101000";
+    else if (input.inst_name == "and")
+        op = "00000000000101001";
+    else if (input.inst_name == "or")
+        op = "00000000000101010";
+    else if (input.inst_name == "xor")
+        op = "00000000000101011";
+    else if (input.inst_name == "sll.w")
+        op = "00000000000101110";
+    else if (input.inst_name == "srl.w")
+        op = "00000000000101111";
+    else if (input.inst_name == "sra.w")
+        op = "00000000000110000";
+    else if (input.inst_name == "mul.w")
+        op = "00000000000111001";
+    else if (input.inst_name == "mulh.w")
+        op = "00000000000111010";
+    else if (input.inst_name == "div.w")
+        op = "00000000001000000";
+    else if (input.inst_name == "mod.w")
+        op = "00000000001000001";
+    else if (input.inst_name == "div.wu")
+        op = "00000000001000010";
+    else if (input.inst_name == "mod.wu")
+        op = "00000000001000011";
+    else if (input.inst_name == "break") {
+        op = "00000000001010100";
+        isinterrupt = true;
+    } else if (input.inst_name == "syscall") {
+        op = "00000000001010110";
+        isinterrupt = true;
+    }
+
+    // 非中断和异常指令有3个寄存器参数
+    if (!isinterrupt) {
+        if (value_num < 3)
+            return "MISS_AUG";
+        else if (value_num > 3)
+            return "REDUND_AUG";
+        rd = int2Binary(getRegID(value[0]),5);
+        rj = int2Binary(getRegID(value[1]),5);
+        rk = int2Binary(getRegID(value[2]),5);
+
+        if (rd == ERROR_REG || rj == ERROR_REG || rk == ERROR_REG)
+            return "REGNO_ERROR";
+
+        return op + rk + rj + rd;
+    }
+    // 中断和异常没有寄存器参数，只有一个code
+    else {
+        if (value_num < 1)
+            return "MISS_AUG";
+        else if (value_num > 1)
+            return "REDUND_AUG";
+
+        // 15bit整数转化
+        int num;
+        // 分为16进制和10进制两种情况
+        if (value[0].mid(0,2) == "0x")
+            num = hex2Int(value[0]);
+        else
+            num = value[0].toInt();
+        code = int2Binary(num, 15);
+        return op + code;
+    }
+}
+
+QString Assembler::_2RTypeASM(instruction input) {
+    QList<QString>value;
+    value = input.valueline.split(",");
+
+    QList<QString>tmp;
+    int value_num = value.size();
+    QString str = value[value_num - 1].remove(QRegExp("\\s"));
+    tmp = str.split("#");
+    value[value_num - 1] = tmp[0];
+
+    if (value_num < 1)
+        return "MISS_AUG";
+    else if (value_num > 1)
+        return "REDUND_AUG";
+
+    QString op,rd,rj;
+    // 2R类型指令opcode占22bit，默认全0
+    op = "0000000000000000000000";
+    if (input.inst_name == "rdcntid.w") {
+        op = "0000000000000000011000";
+        rd = "00000";
+        rj = int2Binary(getRegID(value[0]),5);
+    } else if (input.inst_name == "rdcntvl.w") {
+        op = "0000000000000000011000";
+        rj = "00000";
+        rd = int2Binary(getRegID(value[0]),5);
+    } else if (input.inst_name == "rdcntvh.w") {
+        op = "0000000000000000011001";
+        rj = "00000";
+        rd = int2Binary(getRegID(value[0]),5);
+    }
+    if (rd == ERROR_REG || rj == ERROR_REG)
+        return "REGNO_ERROR";
+    return op + rj + rd;
+}
+
+QString Assembler::_2RI8TypeASM(instruction input) {
+    QList<QString>value;
+    value = input.valueline.split(",");
+
+    QList<QString>tmp;
+    int value_num = value.size();
+    QString str = value[value_num - 1].remove(QRegExp("\\s"));
+    tmp = str.split("#");
+    value[value_num - 1] = tmp[0];
+
+    if (value_num < 3)
+        return "MISS_AUG";
+    else if (value_num > 3)
+        return "REDUND_AUG";
+
+    QString op,rd,rj,ui5;
+    // 2RI8类型指令opcode占17bit(将立即数的高三位并入opcode)
+    op = "00000000000000000";
+    if (input.inst_name == "slli.w")
+        op = "00000000010000001";
+    else if (input.inst_name == "srli.w")
+        op = "00000000010001001";
+    else if (input.inst_name == "srai.w")
+        op = "00000000010010001";
+
+    // 5bit无符号数转化
+    int num;
+    // 分为16进制和10进制两种情况
+    if(value[2].mid(0,2) == "0x")
+        num = hex2Int(value[2]);
+    else
+        num = value[2].toInt();
+    ui5 = int2Binary(num, 5);
+    rd = int2Binary(getRegID(value[0]),5);
+    rj = int2Binary(getRegID(value[1]),5);
+
+    if (rd == ERROR_REG || rj == ERROR_REG)
+        return "REGNO_ERROR";
+
+    return op + ui5 + rj + rd;
+}
+
+QString Assembler::_2RI12TypeASM(instruction input) {
+    QList<QString>value;
+    value = input.valueline.split(",");
+
+    QList<QString>tmp;
+    int value_num = value.size();
+    QString str = value[value_num - 1].remove(QRegExp("\\s"));
+    tmp = str.split("#");
+    value[value_num - 1] = tmp[0];
+
+    if (value_num < 3)
+        return "MISS_AUG";
+    else if (value_num > 3)
+        return "REDUND_AUG";
+
+    QString op,rd,rj,imm12;
+    // 2RI12类型指令opcode占10bit
+    op = "0000000000";
+    if (input.inst_name == "slti")
+        op = "0000001000";
+    else if (input.inst_name == "sltui")
+        op = "0000001001";
+    else if (input.inst_name == "addi.w")
+        op = "0000001010";
+    else if (input.inst_name == "andi")
+        op = "0000001101";
+    else if (input.inst_name == "ori")
+        op = "0000001110";
+    else if (input.inst_name == "xori")
+        op = "0000001111";
+    else if (input.inst_name == "ld.b")
+        op = "0010100000";
+    else if (input.inst_name == "ld.h")
+        op = "0010100001";
+    else if (input.inst_name == "ld.w")
+        op = "0010100010";
+    else if (input.inst_name == "st.b")
+        op = "0010100100";
+    else if (input.inst_name == "st.h")
+        op = "0010100101";
+    else if (input.inst_name == "st.w")
+        op = "0010100110";
+    else if (input.inst_name == "ld.bu")
+        op = "0010101000";
+    else if (input.inst_name == "ld.hu")
+        op = "0010101001";
+    else if (input.inst_name == "preld")
+        op = "0010101011";
+
+    // 12bit整数转化
+    int num;
+    // 分为16进制和10进制两种情况
+    if (value[2].mid(0,2) == "0x")
+        num = hex2Int(value[2]);
+    else
+        num = value[2].toInt();
+    imm12 = int2Binary(num, 12);
+    rd = int2Binary(getRegID(value[0]),5);
+    rj = int2Binary(getRegID(value[1]),5);
+
+    if (rd == ERROR_REG || rj == ERROR_REG)
+        return "REGNO_ERROR";
+
+    return op + imm12 + rj + rd;
+}
+
+QString Assembler::_2RI14TypeASM(instruction input) {
+    QList<QString>value;
+    value = input.valueline.split(",");
+
+    QList<QString>tmp;
+    int value_num = value.size();
+    QString str = value[value_num - 1].remove(QRegExp("\\s"));
+    tmp = str.split("#");
+    value[value_num - 1] = tmp[0];
+
+    if (value_num < 3)
+        return "MISS_AUG";
+    else if (value_num > 3)
+        return "REDUND_AUG";
+
+    QString op,rd,rj,imm14;
+    // 2RI14类型指令opcode占8bit
+    op = "00000000";
+    if (input.inst_name == "ll.w")
+        op = "00100000";
+    else if (input.inst_name == "sc.w")
+        op = "00100001";
+
+    // 14bit整数转化
+    int num;
+    // 分为16进制和10进制两种情况
+    if (value[2].mid(0,2) == "0x")
+        num = hex2Int(value[2]);
+    else
+        num = value[2].toInt();
+    imm14 = int2Binary(num, 14);
+    rd = int2Binary(getRegID(value[0]),5);
+    rj = int2Binary(getRegID(value[1]),5);
+
+    if (rd == ERROR_REG || rj == ERROR_REG)
+        return "REGNO_ERROR";
+
+    return op + imm14 + rj + rd;
+}
+
+QString Assembler::_2RI16TypeASM(instruction input, int position) {
+    QList<QString>value;
+    value = input.valueline.split(",");
+
+    QList<QString>tmp;
+    int value_num = value.size();
+    QString str = value[value_num - 1].remove(QRegExp("\\s"));
+    tmp = str.split("#");
+    value[value_num - 1] = tmp[0];
+
+    QString op,rj,rd,imm16,imm10;
+    bool longjmp = false;
+    // 2RI16类型指令opcode占6bit
+    op = "000000";
+    if (input.inst_name == "jirl")
+        op = "010011";
+    else if (input.inst_name == "b") {
+        op = "010100";
+        longjmp = true;
+    } else if (input.inst_name == "bl") {
+        op = "010101";
+        longjmp = true;
+    }
+    else if (input.inst_name == "beq")
+        op = "010110";
+    else if (input.inst_name == "bne")
+        op = "010111";
+    else if (input.inst_name == "blt")
+        op = "011000";
+    else if (input.inst_name == "bge")
+        op = "011001";
+    else if (input.inst_name == "bltu")
+        op = "011010";
+    else if (input.inst_name == "bgeu")
+        op = "011011";
+
+    if (!longjmp) {
+        if (value_num < 3)
+            return "MISS_AUG";
+        else if (value_num > 3)
+            return "REDUND_AUG";
+
+        // 16bit整数转化
+        char* s;
+        QByteArray ascii = value[2].toLatin1(); // 转ASCII码
+        s = ascii.data();
+        // 直接16进制地址
+        if (value[2].mid(0, 2) == "0x")
+            imm16 = int2Binary(hex2Int(value[2]), 16);
+        // 10进制地址
+        else if (s[0] <= '9' && s[0] >= '0')
+            imm16 = int2Binary(value[2].toInt(), 16);
+        // 如果是借助标号的间接跳转
+        else {
+            bool match_flag = false;
+            for (unsigned int i = 0; i < labellist.size(); i++) {
+                if (value[2] == labellist[i].name) {
+                    match_flag = true;
+                    // 跳转距离是4字节的整数倍
+                    int distance = 4 * (labellist[i].address - position);
+                    imm16 = int2Binary(distance, 16);
+                }
+            }
+            if (!match_flag)
+                return "UNDEFINED_LABEL";
+        }
+        rd = int2Binary(getRegID(value[1]), 5);
+        rj = int2Binary(getRegID(value[0]), 5);
+
+        if (rd == ERROR_REG || rj == ERROR_REG)
+            return "REGNO_ERROR";
+
+        return op + imm16 + rj + rd;
+    }
+    else if (longjmp) {
+        if (value_num < 1)
+            return "MISS_AUG";
+        else if (value_num > 1)
+            return "REDUND_AUG";
+
+        // 16bit整数转化
+        int num_0, num_1;
+        // 分为16进制和10进制两种情况
+        if (value[0].mid(0,2) == "0x") {
+            num_0 = hex2Int(value[0]);
+            num_1 = num_0 >> 16;
+        } else {
+            num_0 = value[0].toInt();
+            num_1 = num_0 >> 16;
+        }
+        imm16 = int2Binary(num_0, 16);
+        imm10 = int2Binary(num_1, 10);
+        return op + imm16 + imm10;
+    }
+    return "error";
+}
+
+QString Assembler::_1RI20TypeASM(instruction input) {
+    QList<QString>value;
+    value = input.valueline.split(",");
+
+    QList<QString>tmp;
+    int value_num = value.size();
+    QString str = value[value_num - 1].remove(QRegExp("\\s"));
+    tmp = str.split("#");
+    value[value_num - 1] = tmp[0];
+
+    if (value_num < 2)
+        return "MISS_AUG";
+    else if (value_num > 2)
+        return "REDUND_AUG";
+
+    QString op,rd,imm20;
+    // 1RI20类型指令opcode占7bit
+    op = "0000000";
+    if (input.inst_name == "lu12i.w")
+        op = "0001010";
+    else if (input.inst_name == "pcaddu12i.w")
+        op = "0001110";
+
+    // 20bit整数转化
+    int num;
+    // 分为16进制和10进制两种情况
+    if(value[1].mid(0,2) == "0x")
+        num = hex2Int(value[1]);
+    else
+        num = value[1].toInt();
+    imm20 = int2Binary(num, 20);
+    rd = int2Binary(getRegID(value[0]),5);
+
+    if (rd == ERROR_REG)
+        return "REGNO_ERROR";
+
+    return op + imm20 + rd;
+}
+
+QString Assembler::_BARTypeASM(instruction input) {
+    QList<QString>value;
+    value = input.valueline.split(",");
+
+    QList<QString>tmp;
+    int value_num = value.size();
+    QString str = value[value_num - 1].remove(QRegExp("\\s"));
+    tmp = str.split("#");
+    value[value_num - 1] = tmp[0];
+
+    if (value_num < 1)
+        return "MISS_AUG";
+    else if (value_num > 1)
+        return "REDUND_AUG";
+
+    QString op, hint;
+    // BAR类型指令opcode占17bit
+    op = "00000000000000000";
+    if (input.inst_name == "dbar")
+        op = "00111000011100100";
+    else if (input.inst_name == "ibar")
+        op = "00111000011100101";
+
+    // 15bit整数转化
+    int num;
+    // 分为16进制和10进制两种情况
+    if(value[0].mid(0,2) == "0x")
+        num = hex2Int(value[0]);
+    else
+        num = value[0].toInt();
+    hint = int2Binary(num, 15);
+    return op + hint;
+}
+
+/*---------------------------------------------*/
+/* 16进制转10进制
+ */
+int Assembler::hex2Int(QString hex) {
+    char *str;
+    QByteArray ba = hex.toLatin1();
+    str = ba.data();
+    int count = hex.length();
+    int sum = 0;
+    for (int i = count - 1; i >= 2; i--)//从十六进制个位开始，每位都转换成十进制
+    {
+        if (str[i] >= '0' && str[i] <= '9') //数字转换
+            sum += (str[i] - 48) * pow(16, count - i - 1);
+        else if (str[i] >= 'A' && str[i] <= 'F') //大写字母转换
+            sum += (str[i] - 55) * pow(16, count - i - 1);
+        else if (str[i] >= 'a' && str[i] <= 'f') //小写字母转换
+            sum += (str[i] - 55 - 32) * pow(16, count - i - 1);
+    }
+    return sum;
+}
+
+/*---------------------------------------------*/
+/* 查询寄存器名
+ */
+QString Assembler::getRegName(int id, int mode) {
+    return mode == GET_NAME ? regs_name[id] : regs_alias[id];
+}
+
+/*---------------------------------------------*/
+/* 查询寄存器号
+ */
+int Assembler::getRegID(QString reg) {
+    for (int i = 0; i < 32; i++)
+        if (regs_name[i] == reg.simplified() || regs_alias[i] == reg.simplified())
+            return i;
+    return -1;
+}
+
+/*---------------------------------------------*/
+/* 10进制转二进制
+ */
+QString Assembler::int2Binary(int input, int num) {
+    QString ans = "";
+    // 非负数时直接转换
+    if (input >= 0) {
+        for (int i = 0; i < num; i++) {
+            int bit = input % 2;
+            ans = QString::number(bit) + ans;
+            input = input / 2;
+        }
+    }
+    // 负数时转成补码
+    else {
+        input = pow(2, num) + input;
+        for (int i = 0; i < num; i++) {
+            int bit = input % 2;
+            ans = QString::number(bit) + ans;
+            input = input / 2;
+        }
+    }
+    return ans;
+}
