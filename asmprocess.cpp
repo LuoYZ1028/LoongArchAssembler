@@ -1,20 +1,21 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-/*---------------------------------------------*/
-/* 清理向量
+/*
+ * 清理向量
  */
 void Mainwindow::vectorClear() {
     input.clear();
-    stdinput.clear();
+    debugger->stdinput.clear();
     assembler.labellist.clear();
     assembler.varlist.clear();
     assembler.valid = 0;
+    valid = 0;
     output.clear();
-    inst_vec.clear();
+    debugger->inst_vec.clear();
+    debugger->memoryText.clear();
 }
 
-/*---------------------------------------------*/
 /*
  * 读取缓冲区内容
  */
@@ -27,7 +28,6 @@ void Mainwindow::readInput() {
     }
 }
 
-/*---------------------------------------------*/
 /*
  * 处理指令行
  */
@@ -35,13 +35,15 @@ void Mainwindow::instProcess(int *error_no, QString input, int lineCnt) {
     if (input.simplified().isEmpty() || input.simplified().mid(0, 1) == "#")
         return ;    //遇到注释行或空行则跳过
 
-    QList<QString>lst;
-    lst = input.simplified().split(" ");
+    QList<QString>lst = input.simplified().split(" ");
     if (input.mid(input.length() - 1, 1) == ":") {
         //遇到label就记录其名称和位置
         struct Assembler::label newLabel;
         newLabel.name = input.mid(0, input.length() - 1);
-        newLabel.address = valid + 1;
+        if (valid == 0)
+            newLabel.address = 0;
+        else
+            newLabel.address = valid + 1;
 //        qDebug() << newLabel.name << newLabel.address;
         assembler.labellist.push_back(newLabel);
     }
@@ -50,10 +52,10 @@ void Mainwindow::instProcess(int *error_no, QString input, int lineCnt) {
         if (type != TYPE_ERROR) {
             // 将该条指令语句去掉注释，推入指令向量中
             QList<QString>tmp;
-            QString str = input.remove(QRegExp("\\s"));
+            QString str = input.simplified();
             tmp = str.split("#");
             str = tmp[0];
-            inst_vec.push_back(str);
+            debugger->inst_vec.push_back(str);
 
             // 指令语句标准化处理
             struct Assembler::instruction ins;
@@ -70,7 +72,7 @@ void Mainwindow::instProcess(int *error_no, QString input, int lineCnt) {
             }
             ins.valueline = vline;
             ins.lineno = lineCnt + 1;
-            stdinput.push_back(ins);
+            debugger->stdinput.push_back(ins);
             valid++;
         }
         else {
@@ -80,36 +82,55 @@ void Mainwindow::instProcess(int *error_no, QString input, int lineCnt) {
     }
 }
 
-/*---------------------------------------------*/
 /*
  * 处理数据行
  */
-void Mainwindow::dataProcess(int *error_no, QString input, int lineCnt) {
+void Mainwindow::dataProcess(int *error_no, QString input) {
     static uint address = 0;
+    if (has_assembled == true)
+        address = 0;
     static bool has_word = false;
     static bool has_space = false;
     if (input.simplified().isEmpty() || input.simplified().mid(0, 2) == "#")
         return ;    //遇到注释行或空行则跳过
 
-    QList<QString>lst;
-    lst = input.simplified().split(" ");
+    QList<QString>lst = input.simplified().split(" ");
     if (lst[0].mid(lst[0].length() - 1, 1) == ":") {
         struct Assembler::var newVar;
-        newVar.type = assembler.matchType(lst[1].toLower(), DATA_MODE);
+        newVar.type = assembler.matchType(lst[1].toLower(), DATA_MODE); // 判断变量类型
         if (newVar.type != TYPE_ERROR) {
             newVar.name = lst[0].mid(0, lst[0].length() - 1);
-            newVar.addr = address;
-
-            for (int i = 2; i < lst.size(); i++) {
-                if (lst[i].mid(0, 1) != "#" && lst[i].mid(0, 1) == "\"") {
-                    newVar.contents += lst[i].mid(1, lst[i].length() - 1);
-                } else if (lst[i].mid(0, 1) != "#" && lst[i].mid(lst[i].length() - 1, 1) == "\"") {
+            // ASCIZ类型去掉双引号
+            if (newVar.type == ASCIZ) {
+                for (int i = 2; i < lst.size(); i++) {
+                    if (lst[i].mid(0, 1) != "#" && lst[i].mid(0, 1) == "\"") {
+                        newVar.contents += lst[i].mid(1, lst[i].length() - 1);
+                    } else if (lst[i].mid(0, 1) != "#" && lst[i].mid(lst[i].length() - 1, 1) == "\"") {
+                        newVar.contents += " ";
+                        newVar.contents += lst[i].mid(0, lst[i].length() - 1);
+                    } else if (lst[i].mid(0, 1) != "#") {
+                        newVar.contents += " ";
+                        newVar.contents += lst[i];
+                    } else break;//读到注释则跳过本行
+                }
+            }
+            // WORD类型处理逗号分割符
+            else if (newVar.type == WORD) {
+                for (int i = 2; i < lst.size(); i++) {
+                    lst[i].replace(",", " ");
+                    QList<QString>tmp = lst[i].split(" ");
+                    for (int j = 0; j < tmp.size(); j++) {
+                        if (tmp[j] != "")
+                            newVar.contents += assembler.bi2Hex(assembler.int2Binary(tmp[j].toInt(), 32));
+                    }
                     newVar.contents += " ";
-                    newVar.contents += lst[i].mid(0, lst[i].length() - 1);
-                } else if (lst[i].mid(0, 1) != "#") {
-                    newVar.contents += " ";
-                    newVar.contents += lst[i];
-                } else break;//读到注释则跳过本行
+                }
+            }
+            // SPACE类型直接赋0
+            else {
+                int blk = lst[2].simplified().toInt();
+                for (int i = 0; i < blk; i++)
+                    newVar.contents += "0 ";
             }
             int ele_size = 0;
             switch (newVar.type)
@@ -119,30 +140,28 @@ void Mainwindow::dataProcess(int *error_no, QString input, int lineCnt) {
             case SPACE: ele_size = 8; has_space = true; break;
             default: ele_size = 0;
             }
-            // ToDo
-            // 处理字符串类型变量
+            // 处理变量所占空间，单位是B
             if (newVar.type == ASCIZ)
                 newVar.size = ele_size * newVar.contents.length();
             else if (newVar.type == SPACE)
-                newVar.size = ele_size * newVar.contents.toInt();
+                newVar.size = ele_size * lst[2].simplified().toInt();
             else
                 newVar.size = ele_size * (lst.size() - 2);
-            assembler.varlist.push_back(newVar);
-
             // 内部对齐问题
-            if (has_space && newVar.size % 8)
-                address += (newVar.size / 8 + 1) * 8;
-            else if (has_word && newVar.size % 4)
-                address += (newVar.size / 4 + 1) * 4;
-            else
-                address += newVar.size;
+            if (has_space && address % SPACE_BYTE)
+                address = (address / SPACE_BYTE + 1) * SPACE_BYTE;
+            else if (has_word && address % WORD_BYTE)
+                address = (address / WORD_BYTE + 1) * WORD_BYTE;
+            newVar.addr = address;
+            assembler.varlist.push_back(newVar);
+            // 计算新地址
+            address += newVar.size;
         }
         else
             *error_no = TYPE_ERROR;
     }
 }
 
-/*---------------------------------------------*/
 /*
  * 按行读取缓冲区内容，并进行标准化
  */
@@ -188,6 +207,16 @@ void Mainwindow::lineProcess(int *error_no) {
             *error_no = REDUND_DATASEG;
             return ;
         }
+        // .origin标志检测，若在.text前出现则有错
+        if (text_flag && input[i].mid(0, 7) == ".origin") {
+            assembler.changeTSA(input[i], error_no);
+            lineCnt++;
+            continue;
+        }
+        else if (!text_flag && input[i].mid(0, 7) == ".origin") {
+            *error_no = ORIGIN_ERROR;
+            return ;
+        }
 
         // 代码段处理
         if ((text_flag && textStartlineNo < dataStartlineNo)
@@ -196,7 +225,7 @@ void Mainwindow::lineProcess(int *error_no) {
         // 数据段处理
         else if ((data_flag && dataStartlineNo < textStartlineNo)
                  || (text_flag && data_flag && textStartlineNo < dataStartlineNo))
-            dataProcess(error_no, input[i], lineCnt);
+            dataProcess(error_no, input[i]);
         lineCnt++; // 总行数+1
     }
     // 程序里必须有.text，否则有错
@@ -206,22 +235,22 @@ void Mainwindow::lineProcess(int *error_no) {
     }
 }
 
-/*---------------------------------------------*/
-/* 对标准化后的内容进行翻译
+/*
+ * 对标准化后的内容进行翻译
  */
 int Mainwindow::transCode(int *error_no, int *error_instno) {
     for (int i = 0; i < valid; i++) {
-        QString result = assembler.asm2Machine(stdinput[i]);
+        QString result = assembler.asm2Machine(debugger->stdinput[i]);
         errorDetect(error_no, result);
         // 该语句无错误才推入输出缓冲区
         if (*error_no == NO_ERROR) {
             output.push_back(result);
-            output[i] = bi2Hex(output[i]);
+            output[i] = assembler.bi2Hex(output[i]);
         }
         // 翻译过程发现错误就提前退出，并取出该指令
         else {
             *error_instno = i;
-            return stdinput[i].lineno;
+            return debugger->stdinput[i].lineno;
         }
     }
     return -1;

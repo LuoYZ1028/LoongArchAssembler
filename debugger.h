@@ -1,45 +1,88 @@
 #ifndef DEBUGGER_H
 #define DEBUGGER_H
 
-#include <string>
+#include <QString>
 #include <vector>
 #include <cstdio>
 #include <cstring>
-#include "ctype.h"
+#include "qglobal.h"
+#include "assembler.h"
 
-#define MAX_MEMSIZE 65536
-#define MAX_INSTNUM 128
+// 其它宏定义
+#define MAX_MEMSIZE 1024
 #define DEFAULT_BP  0xffff
 
 using namespace std;
 
-typedef unsigned int uint;
+struct meminfo {
+    QString addr;
+    QString hex;
+    QString asciz;
+};
 
-class Debugger
+class Debugger : public Assembler
 {
 private:
-    uint regfile[32];
-    uint pc;
-    uint ir;
-    int initPCaddr;
+    uint regfile[32];   // 模拟32个寄存器
+    uint memsize;       // 主存大小
+    uint *memory;       // 主存内容
+    uint pc;            // PC值
+    QString ir;         // IR内容
+    int initPCaddr;     // PC初始值
+    uint breakpoint;    // 断点值
+    uint changedMemAddr;// 被修改的内存地址
     ~Debugger();
-    uint breakpoint;
 
 public:
+    vector<meminfo>memoryText;
     Debugger();
+    Debugger(int size);
 
-    int run();      // 返回执行了多少条指令
-    int step();     // 成功返回1，否则返回0
-    void reset();   // 重置操作
+    std::vector<Assembler::instruction>stdinput;    //处理后的标准化输入
+    std::vector<QString>inst_vec;                   //指令存储区
 
+    int run(Assembler assembler);      // 返回执行了多少条指令
+    int step(Assembler assembler);     // 成功返回1，否则返回0
+    void reset(Assembler assembler);   // 重置操作
+
+    /*
+     * PC处理函数
+     */
     uint getPC() { return pc; }
     void setPC(uint c) { pc = c; }
 
-    uint getIR() { return ir; }
+    /*
+     * IR和寄存器堆处理函数
+     */
+    QString getIR() { return ir; }
     uint getReg(int idx) { return regfile[idx]; }
 
+    /*
+     * 主存处理函数
+     */
+    uint getMemSize() { return memsize; }
+    void setMemory(uint address, uint data);
+    uint getMem(int addr) { return memory[addr]; }
+    uint getChangedMemAddr();
+    void loadData(Assembler assembler);
+
+    /*
+     * 断点处理函数
+     */
     uint getBreakpoint() { return breakpoint; }
     void setBreakpoint(uint &value) { breakpoint = value; }
+
+    /*
+     * 各类指令的单周期CPU模拟处理函数
+     */
+    void _3R_handler(int inst_idx, int rd, int rj, int rk);
+    void _2R_handler(int inst_idx, int rd, int rj);
+    void _2RI8_handler(int inst_idx, int rd, int rj, int imm);
+    void _2RI12_handler(int inst_idx, int rd, int rj, int imm);
+    void _2RI14_handler(int inst_idx, int rd, int rj, int imm);
+    void _2RI16_handler(int inst_idx, int rd, int rj, int imm, bool *branch_taken);
+    void _1RI20_handler(int inst_idx, int rd, int imm);
+    void _BAR_handler(int inst_idx, int hint);
 };
 
 

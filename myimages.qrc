@@ -1,0 +1,18 @@
+<RCC>
+    <qresource prefix="/ICON">
+        <file>ICON/main_icon.ico</file>
+        <file>ICON/open_icon.ico</file>
+        <file>ICON/save_icon.ico</file>
+        <file>ICON/build_icon.ico</file>
+        <file>ICON/data_icon.ico</file>
+        <file>ICON/debug.png</file>
+        <file>ICON/reset.png</file>
+        <file>ICON/run.png</file>
+        <file>ICON/step.png</file>
+        <file>ICON/edit.png</file>
+        <file>ICON/result.png</file>
+        <file>ICON/exit.png</file>
+        <file>ICON/code.png</file>
+        <file>ICON/data.ico</file>
+    </qresource>
+</RCC>

@@ -1,6 +1,27 @@
 #include "assembler.h"
 
 Assembler::Assembler(){
+    textStartAddr = DEFAULT_TSA;
+}
+
+/*
+ * 修改代码段起始地址
+ */
+void Assembler::changeTSA(QString input, int *error_no) {
+    QList<QString>lst = input.simplified().split(" ");
+    int tmp = 0;
+    // 16进制地址
+    if (lst[1].mid(0, 2) == "0x")
+        tmp = hex2Int(lst[1]);
+    // 10进制地址
+    else
+        tmp = lst[1].toInt();
+
+    // 检查该偏移量是否为4的整数倍
+    if (tmp % 4 == 0)
+        textStartAddr = tmp;
+    else
+        *error_no = ORIGIN_VERROR;
 
 }
 
@@ -63,7 +84,6 @@ int Assembler::matchType(QString name, int mode){
     return TYPE_ERROR;
 }
 
-/*---------------------------------------------*/
 /* 负责把指令分发到对应的处理函数
  */
 QString Assembler::asm2Machine(instruction input) {
@@ -277,7 +297,7 @@ QString Assembler::_2RI12TypeASM(instruction input) {
         op = "0000001001";
     else if (input.inst_name == "addi.w")
         op = "0000001010";
-    else if (input.inst_name == "andi")
+    else if (input.inst_name == "andi" || input.inst_name == "nop")
         op = "0000001101";
     else if (input.inst_name == "ori")
         op = "0000001110";
@@ -301,7 +321,13 @@ QString Assembler::_2RI12TypeASM(instruction input) {
         op = "0010101001";
     else if (input.inst_name == "preld")
         op = "0010101011";
-
+    // nop相当于一条伪指令
+    if (input.inst_name == "nop") {
+        rd = "00000";
+        rj = "00000";
+        imm12 = "000000000000";
+        return op + imm12 + rj + rd;
+    }
     // 12bit整数转化
     int num;
     // 分为16进制和10进制两种情况
@@ -417,8 +443,8 @@ QString Assembler::_2RI16TypeASM(instruction input, int position) {
             for (unsigned int i = 0; i < labellist.size(); i++) {
                 if (value[2] == labellist[i].name) {
                     match_flag = true;
-                    // 跳转距离是4字节的整数倍
-                    int distance = 4 * (labellist[i].address - position);
+                    // 虽然实际距离是4的整数倍，但此工作应留给硬件完成
+                    int distance = labellist[i].address - position;
                     imm16 = int2Binary(distance, 16);
                 }
             }
@@ -529,9 +555,7 @@ QString Assembler::_BARTypeASM(instruction input) {
     return op + hint;
 }
 
-/*---------------------------------------------*/
-/* 16进制转10进制
- */
+// 16进制转10进制
 int Assembler::hex2Int(QString hex) {
     char *str;
     QByteArray ba = hex.toLatin1();
@@ -550,16 +574,12 @@ int Assembler::hex2Int(QString hex) {
     return sum;
 }
 
-/*---------------------------------------------*/
-/* 查询寄存器名
- */
+// 查询寄存器名
 QString Assembler::getRegName(int id, int mode) {
     return mode == GET_NAME ? regs_name[id] : regs_alias[id];
 }
 
-/*---------------------------------------------*/
-/* 查询寄存器号
- */
+// 查询寄存器号
 int Assembler::getRegID(QString reg) {
     for (int i = 0; i < 32; i++)
         if (regs_name[i] == reg.simplified() || regs_alias[i] == reg.simplified())
@@ -567,9 +587,7 @@ int Assembler::getRegID(QString reg) {
     return -1;
 }
 
-/*---------------------------------------------*/
-/* 10进制转二进制
- */
+// 10进制转二进制
 QString Assembler::int2Binary(int input, int num) {
     QString ans = "";
     // 非负数时直接转换
@@ -590,4 +608,28 @@ QString Assembler::int2Binary(int input, int num) {
         }
     }
     return ans;
+}
+
+// 2进制转16进制
+QString Assembler::bi2Hex(QString bin) {
+    QString out = "";
+    for (int i = 0; i < 8; i++) {
+        int b3, b2, b1, b0;
+        b3 = bin.mid(4*i, 1).toInt();
+        b2 = bin.mid(4*i + 1, 1).toInt();
+        b1 = bin.mid(4*i + 2, 1).toInt();
+        b0 = bin.mid(4*i + 3, 1).toInt();
+        int tmp = b3*8 + b2*4 + b1*2 + b0;
+        out += Assembler::Hex[tmp];
+    }
+    return out;
+}
+
+// 大小端转换
+QString Assembler::littleEndian(QString str) {
+    QString byte1 = str.mid(0, 2);
+    QString byte2 = str.mid(2, 2);
+    QString byte3 = str.mid(4, 2);
+    QString byte4 = str.mid(6, 2);
+    return byte4 + byte3 + byte2 + byte1;
 }

@@ -20,11 +20,18 @@ protected:
     void highlightBlock(const QString &text) override;
 
 private:
+    /*
+     * 高亮规则结构体，模式块+格式块
+     */
     struct HighlightingRule
     {
         QRegularExpression pattern;
         QTextCharFormat format;
     };
+
+    /*
+     * 各类需要高亮的词句类型
+     */
     QVector<HighlightingRule> highlightingRules;
     QRegularExpression commentStartExpression;
     QRegularExpression commentEndExpression;

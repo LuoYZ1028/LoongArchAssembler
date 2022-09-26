@@ -38,3 +38,13 @@ HEADERS  += mainwindow.h \
     debugger.h
 
 FORMS    += mainwindow.ui
+
+RC_ICONS = "ICON/main_icon.ico"
+
+DISTFILES += \
+    ICON/main_icon.ico
+
+RESOURCES += \
+    myimages.qrc
+
+RESOURCES += qdarkstyle/dark/darkstyle.qrc
