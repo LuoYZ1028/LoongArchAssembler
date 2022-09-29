@@ -1,5 +1,9 @@
 #include "debugger.h"
-#define POW2(n, m) (n << m)
+#define I12 12
+#define I14 14
+#define I16 16
+#define I20 20
+#define MASK(n, m) (n % (1 << m))
 
 Debugger::Debugger() {
     Debugger(MAX_MEMSIZE);
@@ -41,7 +45,7 @@ int Debugger::run(Assembler assembler) {
     uint cnt = 0;
     while (step(assembler)) {
         cnt++;
-        if (pc == breakpoint || cnt == stdinput.size())
+        if (pc == breakpoint || pc / 4 == stdinput.size() - 1)
             break;
     }
     return cnt;
@@ -246,35 +250,24 @@ void Debugger::_3R_handler(int inst_idx, int rd, int rj, int rk) {
         break;
     // mul.w
     case 11:
-        regfile[rd] = uint(int(regfile[rj]) * int(regfile[rd]));
+        regfile[rd] = uint(int(regfile[rj]) * int(regfile[rk]));
         break;
-    // mulh.u todo
+    // mulh.w todo
     case 12:
     {
-        QString op_1 = Assembler::int2Binary(int(regfile[rj]), 32);
-        QString op_2 = Assembler::int2Binary(int(regfile[rk]), 32);
-        QString result = op_1;
-        int i = abs(int(regfile[rk]));
-        if (i % 2 == 0) {
-            for (; i > 0; i /= 2)
-                result += "0";
-        }
-        else {
-            i--;
-            for (; i > 0; i /= 2)
-                result += "0";
-            for (int j = 0; j < 32; j++) {
-                if (op_2.mid(j, 1) == "1" && result.mid(j, 1) == "1") {
-                    ;
-                }
-            }
-        }
-        result = result.mid(32, 32); // 取高32位
+        int tmp;
+        tmp = int((long long)regfile[rj] * (int)regfile[rk] >> 32);
+        regfile[rd] = uint(tmp);
         break;
     }
     // mulh.wu todo
     case 13:
+    {
+        uint tmp;
+        tmp = uint((unsigned long long)regfile[rj] * regfile[rk] >> 32);
+        regfile[rd] = tmp;
         break;
+    }
     // div.w
     case 14:
         regfile[rd] = int(regfile[rj]) / int(regfile[rk]);
@@ -344,19 +337,19 @@ void Debugger::_2RI12_handler(int inst_idx, int rd, int rj, int imm) {
     {
     // slti
     case 0:
-        regfile[rd] = int(regfile[rj]) < int(imm % 1 << 13) ? 1 : 0;
+        regfile[rd] = int(regfile[rj]) < int(MASK(imm, I12)) ? 1 : 0;
         break;
     // sltui
     case 1:
-        regfile[rd] = regfile[rj] < uint(imm % POW2(2, 12)) ? 1 : 0;
+        regfile[rd] = regfile[rj] < uint(MASK(imm, I12)) ? 1 : 0;
         break;
     // addi.w
     case 2:
-        regfile[rd] = regfile[rj] + imm % POW2(2, 12);
+        regfile[rd] = regfile[rj] + MASK(imm, I12);
         break;
     // andi
     case 3:
-        regfile[rd] = regfile[rj] & (imm % POW2(2, 12));
+        regfile[rd] = regfile[rj] & MASK(imm, I12);
         break;
     // nop
     case 4:
@@ -364,46 +357,43 @@ void Debugger::_2RI12_handler(int inst_idx, int rd, int rj, int imm) {
         break;
     // ori
     case 5:
-        regfile[rd] = regfile[rj] | (imm % POW2(2, 12));
+        regfile[rd] = regfile[rj] | MASK(imm, I12);
         break;
     // xori
     case 6:
-        regfile[rd] = regfile[rj] ^ (imm % POW2(2, 12));
+        regfile[rd] = regfile[rj] ^ MASK(imm, I12);
         break;
     // ld.b
     case 7:
-        regfile[rd] = int(memory[regfile[rj] + imm % POW2(2, 12)] % POW2(2, 8));
+        regfile[rd] = MASK(int(memory[regfile[rj] + MASK(imm, I12)]), 8);
         break;
     // ld.h
     case 8:
-        regfile[rd] = int(memory[regfile[rj] + imm % POW2(2, 12)] % POW2(2, 16));
+        regfile[rd] = MASK(int(memory[regfile[rj] + MASK(imm, I12)]), 16);
         break;
     // ld.w
     case 9:
-        regfile[rd] = int(memory[regfile[rj] + imm % POW2(2, 12)]);
+        regfile[rd] = int(memory[regfile[rj] + MASK(imm, I12)]);
         break;
     // st.b
     case 10:
-        setMemory(regfile[rj] + imm % POW2(2, 12), regfile[rd] % POW2(2, 8));
-        qDebug() << memory[regfile[rj] + imm % POW2(2, 12)] << endl;
+        setMemory(regfile[rj] + MASK(imm, I12), MASK(regfile[rd], 8));
         break;
     // st.h
     case 11:
-        setMemory(regfile[rj] + imm % POW2(2, 12), regfile[rd] % POW2(2, 16));
-        qDebug() << memory[regfile[rj] + imm % POW2(2, 12)] << endl;
+        setMemory(regfile[rj] + MASK(imm, I12), MASK(regfile[rd], 16));
         break;
     // st.w
     case 12:
-        setMemory(regfile[rj] + imm % POW2(2, 12), regfile[rd]);
-        qDebug() << memory[regfile[rj] + imm % POW2(2, 12)] << endl;
+        setMemory(regfile[rj] + MASK(imm, I12), regfile[rd]);
         break;
     // ld.bu
     case 13:
-        regfile[rd] = memory[regfile[rj] + imm % POW2(2, 12)] % POW2(2, 8);
+        regfile[rd] = MASK(memory[regfile[rj] + MASK(imm, I12)], 8);
         break;
     // ld.hu
     case 14:
-        regfile[rd] = memory[regfile[rj] + imm % POW2(2, 12)] % POW2(2, 16);
+        regfile[rd] = MASK(memory[regfile[rj] + MASK(imm, I12)], 16);
         break;
     // preld
     case 15:
@@ -416,11 +406,13 @@ void Debugger::_2RI12_handler(int inst_idx, int rd, int rj, int imm) {
 void Debugger::_2RI14_handler(int inst_idx, int rd, int rj, int imm) {
     switch (inst_idx)
     {
+    // ll.w
     case 0:
-        regfile[rd] = int(memory[regfile[rj] + imm % POW2(2, 14)]);
+        regfile[rd] = int(memory[regfile[rj] + (MASK(imm, I14) << 2)]);
         break;
+    // sc.w
     case 1:
-        memory[regfile[rj] + imm % POW2(2, 12)] = regfile[rd];
+        memory[regfile[rj] + (MASK(imm, I14) << 2)] = regfile[rd];
         break;
     default: ;
     }
@@ -428,7 +420,7 @@ void Debugger::_2RI14_handler(int inst_idx, int rd, int rj, int imm) {
 
 // 2RI16类型指令模拟
 void Debugger::_2RI16_handler(int inst_idx, int rd, int rj, int imm, bool *branch_taken) {
-    int inc = (imm % POW2(2, 16)) << 2;
+    int inc = MASK(imm, I16) << 2;
     switch (inst_idx)
     {
     // jirl
@@ -439,13 +431,13 @@ void Debugger::_2RI16_handler(int inst_idx, int rd, int rj, int imm, bool *branc
         break;
     // b
     case 1:
-        pc = int(pc) + ((imm % POW2(2, 26)) << 2);
+        pc = int(pc) + (MASK(imm, 26) << 2);
         *branch_taken = true;
         break;
     // bl
     case 2:
         regfile[1] = pc + 4;
-        pc = int(pc) + ((imm % POW2(2, 26)) << 2);
+        pc = int(pc) + (MASK(imm, 26) << 2);
         *branch_taken = true;
         break;
     // beq
@@ -488,11 +480,11 @@ void Debugger::_1RI20_handler(int inst_idx, int rd, int imm) {
     {
     // lu12i.w
     case 0:
-        regfile[rd] = imm % POW2(2, 20) << 12;
+        regfile[rd] = MASK(imm, I20) << 12;
         break;
     // pcaddu12i
     case 1:
-        regfile[rd] = pc + ((imm % POW2(2, 20)) << 12);
+        regfile[rd] = pc + (MASK(imm, I20) << 12);
         break;
     default: ;
     }
@@ -517,7 +509,7 @@ void Debugger::setMemory(uint address, uint data) {
     address /= 4;
     memory[address] = data;
     // 反馈到memoryText向量中，地址已存在，所以无需重申
-    QString hex_str = Assembler::bi2Hex(Assembler::int2Binary(data, 32));
+    QString hex_str = Assembler::bi2Hex(Assembler::int2Binary(data, 32, UNSIGNED));
     hex_str = hex_str.insert(2, QString(" "));
     hex_str = hex_str.insert(5, QString(" "));
     hex_str = hex_str.insert(8, QString(" "));
@@ -558,7 +550,7 @@ void Debugger::loadData(Assembler assembler) {
             // 地址
             struct meminfo tmp_info;
             tmp_info.addr = Assembler::bi2Hex(Assembler::int2Binary(
-                                assembler.varlist[i].addr + 4*(j + row_acc), 32));
+                                assembler.varlist[i].addr + 4*(j + row_acc), 32, UNSIGNED));
             // 16进制形式
             if (assembler.varlist[i].type == ASCIZ) {
                 for (int k = 0; k < 4; k++) {
@@ -609,7 +601,7 @@ void Debugger::loadData(Assembler assembler) {
             memory[row + row_acc] = 0;
             // 填memoryText
             struct meminfo tmp_info;
-            tmp_info.addr = Assembler::bi2Hex(Assembler::int2Binary(4*(i + row_acc), 32));
+            tmp_info.addr = Assembler::bi2Hex(Assembler::int2Binary(4*(i + row_acc), 32, UNSIGNED));
             tmp_info.hex = "00 00 00 00";
             tmp_info.asciz = "....";
             memoryText.push_back(tmp_info);

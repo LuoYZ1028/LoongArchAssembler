@@ -736,7 +736,7 @@
                </layout>
               </item>
               <item>
-               <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="1,4,1,1">
+               <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="1,4,1">
                 <item>
                  <widget class="QLabel" name="label_6">
                   <property name="font">
@@ -757,22 +757,6 @@
                     <family>Consolas</family>
                     <pointsize>10</pointsize>
                    </font>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QPushButton" name="setBPButton">
-                  <property name="font">
-                   <font>
-                    <family>Consolas</family>
-                    <pointsize>12</pointsize>
-                   </font>
-                  </property>
-                  <property name="cursor">
-                   <cursorShape>PointingHandCursor</cursorShape>
-                  </property>
-                  <property name="text">
-                   <string>set</string>
                   </property>
                  </widget>
                 </item>
@@ -873,7 +857,7 @@
               <item>
                <widget class="QLabel" name="label_7">
                 <property name="text">
-                 <string>  断点表</string>
+                 <string>信息输出</string>
                 </property>
                </widget>
               </item>
@@ -966,7 +950,7 @@
      <x>0</x>
      <y>0</y>
      <width>1170</width>
-     <height>29</height>
+     <height>30</height>
     </rect>
    </property>
    <property name="font">
@@ -979,8 +963,8 @@
      <rect>
       <x>339</x>
       <y>120</y>
-      <width>197</width>
-      <height>114</height>
+      <width>176</width>
+      <height>115</height>
      </rect>
     </property>
     <property name="sizeIncrement">
@@ -1010,8 +994,8 @@
      <rect>
       <x>385</x>
       <y>120</y>
-      <width>180</width>
-      <height>114</height>
+      <width>159</width>
+      <height>115</height>
      </rect>
     </property>
     <property name="title">
@@ -1026,11 +1010,15 @@
      <string>Data</string>
     </property>
     <addaction name="actionOutputDatatxt"/>
+    <addaction name="separator"/>
+    <addaction name="actionOutputDatacoe"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>Help</string>
     </property>
+    <addaction name="actionAbout"/>
+    <addaction name="separator"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuSave"/>
@@ -1133,7 +1121,7 @@
     <string>导出数据为.txt</string>
    </property>
    <property name="toolTip">
-    <string>以txt个数导出变量数据</string>
+    <string>以txt格式导出变量数据</string>
    </property>
   </action>
   <action name="actionOpenfile">
@@ -1263,6 +1251,30 @@
    </property>
    <property name="toolTip">
     <string>保存数据变量</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="icon">
+    <iconset resource="myimages.qrc">
+     <normaloff>:/ICON/ICON/about.png</normaloff>:/ICON/ICON/about.png</iconset>
+   </property>
+   <property name="text">
+    <string>关于我</string>
+   </property>
+   <property name="toolTip">
+    <string>关于该汇编器版权</string>
+   </property>
+  </action>
+  <action name="actionOutputDatacoe">
+   <property name="icon">
+    <iconset resource="myimages.qrc">
+     <normaloff>:/ICON/ICON/data.ico</normaloff>:/ICON/ICON/data.ico</iconset>
+   </property>
+   <property name="text">
+    <string>导出数据为.coe</string>
+   </property>
+   <property name="toolTip">
+    <string>以coe格式导出变量数据</string>
    </property>
   </action>
  </widget>

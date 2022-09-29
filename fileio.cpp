@@ -245,3 +245,66 @@ void Mainwindow::dataOutput_txt() {
     str = "Output File " + fileName + " success!";
     ui->text_output->append(str);
 }
+
+void Mainwindow::dataOutput_coe() {
+    QString str = "memory_initialization_radix=16;\nmemory_initialization_vector=\n";
+    int cnt = 0;
+    for(uint i = 0; i < assembler.varlist.size(); i++) {
+        int type = assembler.varlist[i].type;
+        QList<QString>tmp_list = assembler.varlist[i].contents.split(" ");
+        if (type == ASCIZ) {
+            int size = assembler.varlist[i].size;
+            int row = size % 4 ? size / 4 + 1 : size / 4;
+            for (int j = 0; j < row; j++) {
+                for (int k = 0; k < 4; k++){
+                    if (j * 4 + k < assembler.varlist[i].size) {
+                        // 字符转ascii码
+                        QString tmp_ch = assembler.varlist[i].contents.mid(4*j + k, 1);
+                        str += tmp_ch.toLatin1().toHex();
+                    }
+                    else
+                        str += "00";    // 补0
+                }
+                str += ",";
+                cnt++;
+                if (cnt % 8 == 7)
+                    str += "\n";
+            }
+        }
+        else if (type == WORD) {
+            for (int j = 0; j < tmp_list.size(); j++) {
+                QString tmp = tmp_list[j];
+                tmp = assembler.littleEndian(tmp);
+                str += tmp;
+                str += ",";
+                cnt++;
+                if (cnt % 8 == 7)
+                    str += "\n";
+            }
+        }
+        else {
+            for (int j = 0; j < tmp_list.size() * 2; j++) {
+                str += "00000000,";
+                cnt++;
+                if (cnt % 8 == 7)
+                    str += "\n";
+            }
+        }
+    }
+    QFileDialog fileDialog;
+    QString fileName = fileDialog.getSaveFileName(this, tr("选择文件"), TEST_DIR, tr("Text File(*.txt)"));
+    if (fileName == "")
+        return;
+    QFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, tr("错误"), tr("打开文件失败"));
+        return;
+    } else {
+        QTextStream textStream(&file);
+        textStream<<str;
+        QMessageBox::information(this, tr("提示"), tr("保存文件成功"));
+        file.close();
+    }
+    str = "Output File " + fileName + " success!";
+    ui->text_output->append(str);
+}

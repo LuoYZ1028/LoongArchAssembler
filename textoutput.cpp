@@ -4,24 +4,24 @@
 /*
  * 判断是否有错误，并确认其类型
  */
-void Mainwindow::errorDetect(int *error_no, QString result) {
+void Mainwindow::errorDetect(QString result) {
     if (result == "REGNO_ERROR")
-        *error_no = REGNO_ERROR;
+        assembler.error_no = REGNO_ERROR;
     else if (result == "MISS_AUG")
-        *error_no = MISS_AUG;
+        assembler.error_no = MISS_AUG;
     else if (result == "REDUND_AUG")
-        *error_no = REDUND_AUG;
+        assembler.error_no = REDUND_AUG;
     else if (result == "UNKNOWN_ERROR")
-        *error_no = UNKNOWN_ERROR;
+        assembler.error_no = UNKNOWN_ERROR;
     else if (result == "UNDEFINED_LABEL")
-        *error_no = UNDEFINED_LABEL;
+        assembler.error_no = UNDEFINED_LABEL;
 }
 
 /*
  * 将错误信息输出到text_output
  */
-void Mainwindow::showInfo(int error_no, int error_line, int error_instno) {
-    switch (error_no)
+void Mainwindow::showInfo(int error_line, int error_instno) {
+    switch (assembler.error_no)
     {
     case NO_ERROR:
         error_info = "0 Error, Machine Code is generated successfully!\n";
@@ -65,7 +65,10 @@ void Mainwindow::showInfo(int error_no, int error_line, int error_instno) {
         break;
     }
     ui->text_output->setText(error_info);
-    if (error_no != NO_ERROR && error_no > SEG_ERROR) {
+    if (assembler.error_no != NO_ERROR && assembler.error_no > SEG_ERROR) {
+        ui->asm_input->moveCursor(QTextCursor::Start);
+        for (int i = 1; i < error_line; i++)
+            ui->asm_input->moveCursor(QTextCursor::Down);
         error_info = "Error happend in Line ";
         error_info += QString::number(error_line, 10);
         ui->text_output->append(error_info);
@@ -76,15 +79,15 @@ void Mainwindow::showInfo(int error_no, int error_line, int error_instno) {
 /*
  * 将翻译对照结果，以及数据内容输出到Result页面
  */
-void Mainwindow::showOutput(int *error_no) {
+void Mainwindow::showOutput() {
     ui->output_table->clearContents();  // 清空脏数据
     // 无错误则输出对照信息
-    if (*error_no == NO_ERROR) {
+    if (assembler.error_no == NO_ERROR) {
         ui->output_table->setRowCount(valid);
         int pc = 0;
         for (int i = 0; i < valid; i++) {
             // 输出指令地址
-            QString address = assembler.bi2Hex(assembler.int2Binary(pc, 32));
+            QString address = assembler.bi2Hex(assembler.int2Binary(pc, 32, UNSIGNED));
             address += ":";
             ui->output_table->setItem(i, 0, new QTableWidgetItem(address));
             // 输出机器码
@@ -103,7 +106,7 @@ void Mainwindow::showOutput(int *error_no) {
     ui->output_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 
     ui->data_table->clearContents();    // 清空脏数据
-    if (*error_no == NO_ERROR) {
+    if (assembler.error_no == NO_ERROR) {
         // 无误时输出数据变量
         int row_cnt = 0;
         for (uint i = 0; i < assembler.varlist.size(); i++) {
@@ -124,7 +127,7 @@ void Mainwindow::showOutput(int *error_no) {
                     // 地址
                     ui->data_table->setItem(i + j + row_cnt, 1,
                                             new QTableWidgetItem(assembler.bi2Hex(assembler.int2Binary(
-                                                       assembler.varlist[i].addr + 4 * j, 32))));
+                                                       assembler.varlist[i].addr + 4 * j, 32, UNSIGNED))));
                     // 16进制形式
                     QString tmp = "";
                     for (int k = 0; k < 4; k++){
@@ -145,7 +148,7 @@ void Mainwindow::showOutput(int *error_no) {
                 for (int j = 0; j < row; j++) {
                     ui->data_table->setItem(i + j + row_cnt, 1,
                                             new QTableWidgetItem(assembler.bi2Hex(assembler.int2Binary(
-                                                       assembler.varlist[i].addr + 4 * j, 32))));
+                                                       assembler.varlist[i].addr + 4 * j, 32, UNSIGNED))));
                     // 转成小端模式
                     tmp_lst[j] = assembler.littleEndian(tmp_lst[j]);
                     QString tmp = tmp_lst[j].insert(2, QString(" "));
@@ -169,7 +172,7 @@ void Mainwindow::showOutput(int *error_no) {
                 for (int j = 0; j < row; j++) {
                     ui->data_table->setItem(i + j + row_cnt, 1,
                                             new QTableWidgetItem(assembler.bi2Hex(assembler.int2Binary(
-                                                       assembler.varlist[i].addr + 4 * j, 32))));
+                                                       assembler.varlist[i].addr + 4 * j, 32, UNSIGNED))));
                     // 16进制形式
                     QString tmp = "00 00 00 00";
                     ui->data_table->setItem(i + j + row_cnt, 2, new QTableWidgetItem(tmp));
@@ -187,14 +190,14 @@ void Mainwindow::showOutput(int *error_no) {
 /*
  * 将汇编完成后的有效指令序列输出
  */
-void Mainwindow::initDebugInst(int *error_no) {
+void Mainwindow::initDebugInst() {
     // 清除脏数据
     ui->instText->clear();
-    if (*error_no == NO_ERROR) {
+    if (assembler.error_no == NO_ERROR) {
         QString tmp = "Address\t\tInstruction\n";
         int addr = 0;
         for (uint i = 0; i < debugger->stdinput.size(); i++) {
-            tmp += assembler.bi2Hex(assembler.int2Binary(addr, 32));
+            tmp += assembler.bi2Hex(assembler.int2Binary(addr, 32, UNSIGNED));
             tmp += "\t";
             tmp += debugger->stdinput[i].inst_name;
             tmp += debugger->stdinput[i].valueline;

@@ -61,6 +61,8 @@
 /*
  * 其它宏常量
  */
+#define UNSIGNED        0
+#define SIGNED          1
 #define MAX_LINE_NUM    1000
 #define GET_NAME        0
 #define GET_ALIAS       1
@@ -122,15 +124,15 @@ public:
     /*
      * 代码段起始地址修改函数
      */
-    void changeTSA(QString input, int *error_no);  // 修改代码段起始地址
+    void changeTSA(QString input);                  // 修改代码段起始地址
     uint get_TSA() { return textStartAddr; }       // 返回TSA
 
     /*
      * 进制转换函数
      */
-    QString int2Binary(int input, int num); // 10进制转2进制
-    int hex2Int(QString hex);               // 16进制转10进制
-    QString bi2Hex(QString bin);            // 2进制转16进制
+    QString int2Binary(int input, int num, int mode);   // 10进制转2进制
+    int hex2Int(QString hex);                           // 16进制转10进制
+    QString bi2Hex(QString bin);                        // 2进制转16进制
 
     /*
      * 小端转换函数
@@ -154,6 +156,7 @@ public:
         "C","D","E","F"
     };
     int valid = 0;  // 有效语句条数
+    int error_no = NO_ERROR;
 
 
 protected:

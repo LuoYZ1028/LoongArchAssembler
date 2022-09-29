@@ -1,6 +1,5 @@
 <RCC>
     <qresource prefix="/ICON">
-        <file>ICON/main_icon.ico</file>
         <file>ICON/open_icon.ico</file>
         <file>ICON/save_icon.ico</file>
         <file>ICON/build_icon.ico</file>
@@ -14,5 +13,7 @@
         <file>ICON/exit.png</file>
         <file>ICON/code.png</file>
         <file>ICON/data.ico</file>
+        <file>ICON/main_icon.ico</file>
+        <file>ICON/about.png</file>
     </qresource>
 </RCC>

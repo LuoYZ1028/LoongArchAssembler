@@ -29,7 +29,7 @@ private:
     uint pc;            // PC值
     QString ir;         // IR内容
     int initPCaddr;     // PC初始值
-    uint breakpoint;    // 断点值
+    uint breakpoint;    // 断点表
     uint changedMemAddr;// 被修改的内存地址
     ~Debugger();
 
@@ -69,8 +69,9 @@ public:
     /*
      * 断点处理函数
      */
-    uint getBreakpoint() { return breakpoint; }
-    void setBreakpoint(uint &value) { breakpoint = value; }
+    void clearBreakPoint() { breakpoint = DEFAULT_BP; }
+    void setBreakPoint(uint value) { breakpoint = value; }
+    uint getBreakPoint() { return breakpoint; }
 
     /*
      * 各类指令的单周期CPU模拟处理函数

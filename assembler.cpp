@@ -7,7 +7,7 @@ Assembler::Assembler(){
 /*
  * 修改代码段起始地址
  */
-void Assembler::changeTSA(QString input, int *error_no) {
+void Assembler::changeTSA(QString input) {
     QList<QString>lst = input.simplified().split(" ");
     int tmp = 0;
     // 16进制地址
@@ -21,7 +21,7 @@ void Assembler::changeTSA(QString input, int *error_no) {
     if (tmp % 4 == 0)
         textStartAddr = tmp;
     else
-        *error_no = ORIGIN_VERROR;
+        Assembler::error_no = ORIGIN_VERROR;
 
 }
 
@@ -167,9 +167,9 @@ QString Assembler::_3RTypeASM(instruction input) {
             return "MISS_AUG";
         else if (value_num > 3)
             return "REDUND_AUG";
-        rd = int2Binary(getRegID(value[0]),5);
-        rj = int2Binary(getRegID(value[1]),5);
-        rk = int2Binary(getRegID(value[2]),5);
+        rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
+        rj = int2Binary(getRegID(value[1]), 5, UNSIGNED);
+        rk = int2Binary(getRegID(value[2]), 5, UNSIGNED);
 
         if (rd == ERROR_REG || rj == ERROR_REG || rk == ERROR_REG)
             return "REGNO_ERROR";
@@ -190,7 +190,7 @@ QString Assembler::_3RTypeASM(instruction input) {
             num = hex2Int(value[0]);
         else
             num = value[0].toInt();
-        code = int2Binary(num, 15);
+        code = int2Binary(num, 15, SIGNED);
         return op + code;
     }
 }
@@ -216,15 +216,15 @@ QString Assembler::_2RTypeASM(instruction input) {
     if (input.inst_name == "rdcntid.w") {
         op = "0000000000000000011000";
         rd = "00000";
-        rj = int2Binary(getRegID(value[0]),5);
+        rj = int2Binary(getRegID(value[0]), 5, UNSIGNED);
     } else if (input.inst_name == "rdcntvl.w") {
         op = "0000000000000000011000";
         rj = "00000";
-        rd = int2Binary(getRegID(value[0]),5);
+        rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
     } else if (input.inst_name == "rdcntvh.w") {
         op = "0000000000000000011001";
         rj = "00000";
-        rd = int2Binary(getRegID(value[0]),5);
+        rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
     }
     if (rd == ERROR_REG || rj == ERROR_REG)
         return "REGNO_ERROR";
@@ -263,9 +263,9 @@ QString Assembler::_2RI8TypeASM(instruction input) {
         num = hex2Int(value[2]);
     else
         num = value[2].toInt();
-    ui5 = int2Binary(num, 5);
-    rd = int2Binary(getRegID(value[0]),5);
-    rj = int2Binary(getRegID(value[1]),5);
+    ui5 = int2Binary(num, 5, UNSIGNED);
+    rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
+    rj = int2Binary(getRegID(value[1]), 5, UNSIGNED);
 
     if (rd == ERROR_REG || rj == ERROR_REG)
         return "REGNO_ERROR";
@@ -335,9 +335,9 @@ QString Assembler::_2RI12TypeASM(instruction input) {
         num = hex2Int(value[2]);
     else
         num = value[2].toInt();
-    imm12 = int2Binary(num, 12);
-    rd = int2Binary(getRegID(value[0]),5);
-    rj = int2Binary(getRegID(value[1]),5);
+    imm12 = int2Binary(num, 12, SIGNED);
+    rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
+    rj = int2Binary(getRegID(value[1]), 5, UNSIGNED);
 
     if (rd == ERROR_REG || rj == ERROR_REG)
         return "REGNO_ERROR";
@@ -375,9 +375,9 @@ QString Assembler::_2RI14TypeASM(instruction input) {
         num = hex2Int(value[2]);
     else
         num = value[2].toInt();
-    imm14 = int2Binary(num, 14);
-    rd = int2Binary(getRegID(value[0]),5);
-    rj = int2Binary(getRegID(value[1]),5);
+    imm14 = int2Binary(num, 14, SIGNED);
+    rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
+    rj = int2Binary(getRegID(value[1]), 5, UNSIGNED);
 
     if (rd == ERROR_REG || rj == ERROR_REG)
         return "REGNO_ERROR";
@@ -433,10 +433,10 @@ QString Assembler::_2RI16TypeASM(instruction input, int position) {
         s = ascii.data();
         // 直接16进制地址
         if (value[2].mid(0, 2) == "0x")
-            imm16 = int2Binary(hex2Int(value[2]), 16);
+            imm16 = int2Binary(hex2Int(value[2]), 16, SIGNED);
         // 10进制地址
         else if (s[0] <= '9' && s[0] >= '0')
-            imm16 = int2Binary(value[2].toInt(), 16);
+            imm16 = int2Binary(value[2].toInt(), 16, SIGNED);
         // 如果是借助标号的间接跳转
         else {
             bool match_flag = false;
@@ -445,14 +445,14 @@ QString Assembler::_2RI16TypeASM(instruction input, int position) {
                     match_flag = true;
                     // 虽然实际距离是4的整数倍，但此工作应留给硬件完成
                     int distance = labellist[i].address - position;
-                    imm16 = int2Binary(distance, 16);
+                    imm16 = int2Binary(distance, 16, SIGNED);
                 }
             }
             if (!match_flag)
                 return "UNDEFINED_LABEL";
         }
-        rd = int2Binary(getRegID(value[1]), 5);
-        rj = int2Binary(getRegID(value[0]), 5);
+        rd = int2Binary(getRegID(value[1]), 5, UNSIGNED);
+        rj = int2Binary(getRegID(value[0]), 5, UNSIGNED);
 
         if (rd == ERROR_REG || rj == ERROR_REG)
             return "REGNO_ERROR";
@@ -469,14 +469,14 @@ QString Assembler::_2RI16TypeASM(instruction input, int position) {
         int num_0, num_1;
         // 分为16进制和10进制两种情况
         if (value[0].mid(0,2) == "0x") {
-            num_0 = hex2Int(value[0]);
+            num_0 = value[0].toInt(NULL, 16);
             num_1 = num_0 >> 16;
         } else {
             num_0 = value[0].toInt();
             num_1 = num_0 >> 16;
         }
-        imm16 = int2Binary(num_0, 16);
-        imm10 = int2Binary(num_1, 10);
+        imm16 = int2Binary(num_0, 16, SIGNED);
+        imm10 = int2Binary(num_1, 10, SIGNED);
         return op + imm16 + imm10;
     }
     return "error";
@@ -509,11 +509,11 @@ QString Assembler::_1RI20TypeASM(instruction input) {
     int num;
     // 分为16进制和10进制两种情况
     if(value[1].mid(0,2) == "0x")
-        num = hex2Int(value[1]);
+        num = value[1].toInt(NULL, 16);
     else
         num = value[1].toInt();
-    imm20 = int2Binary(num, 20);
-    rd = int2Binary(getRegID(value[0]),5);
+    imm20 = int2Binary(num, 20, SIGNED);
+    rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
 
     if (rd == ERROR_REG)
         return "REGNO_ERROR";
@@ -551,7 +551,7 @@ QString Assembler::_BARTypeASM(instruction input) {
         num = hex2Int(value[0]);
     else
         num = value[0].toInt();
-    hint = int2Binary(num, 15);
+    hint = int2Binary(num, 15, SIGNED);
     return op + hint;
 }
 
@@ -588,23 +588,34 @@ int Assembler::getRegID(QString reg) {
 }
 
 // 10进制转二进制
-QString Assembler::int2Binary(int input, int num) {
+QString Assembler::int2Binary(int input, int num, int mode) {
     QString ans = "";
-    // 非负数时直接转换
-    if (input >= 0) {
+    if (mode == UNSIGNED) {
+        uint tmp = (uint)input;
         for (int i = 0; i < num; i++) {
-            int bit = input % 2;
+            int bit = (tmp % 2) ? 1 : 0;
             ans = QString::number(bit) + ans;
-            input = input / 2;
+            tmp = tmp / 2;
         }
+        return ans;
     }
-    // 负数时转成补码
     else {
-        input = pow(2, num) + input;
-        for (int i = 0; i < num; i++) {
-            int bit = input % 2;
-            ans = QString::number(bit) + ans;
-            input = input / 2;
+        // 非负数时直接转换
+        if (input >= 0) {
+            for (int i = 0; i < num; i++) {
+                int bit = (input % 2) ? 1 : 0;
+                ans = QString::number(bit) + ans;
+                input = input / 2;
+            }
+        }
+        // 负数时转成补码
+        else {
+            input = (int)((long long)pow(2, num) + input);
+            for (int i = 0; i < num; i++) {
+                int bit = (input % 2) ? 1 : 0;
+                ans = QString::number(bit) + ans;
+                input = input / 2;
+            }
         }
     }
     return ans;

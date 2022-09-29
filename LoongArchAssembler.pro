@@ -30,19 +30,18 @@ SOURCES += main.cpp\
     fileio.cpp \
     debugger.cpp \
     textoutput.cpp \
-    asmprocess.cpp
+    asmprocess.cpp \
+    codeeditor.cpp
 
 HEADERS  += mainwindow.h \
     assembler.h \
     highlighter.h \
-    debugger.h
+    debugger.h \
+    codeeditor.h
 
 FORMS    += mainwindow.ui
 
 RC_ICONS = "ICON/main_icon.ico"
-
-DISTFILES += \
-    ICON/main_icon.ico
 
 RESOURCES += \
     myimages.qrc
