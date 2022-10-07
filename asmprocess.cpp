@@ -9,6 +9,7 @@ void Mainwindow::vectorClear() {
     debugger->stdinput.clear();
     assembler.labellist.clear();
     assembler.varlist.clear();
+    assembler.equlist.clear();
     assembler.valid = 0;
     assembler.error_no = NO_ERROR;
     valid = 0;
@@ -61,8 +62,15 @@ void Mainwindow::instProcess(QString input, int lineCnt) {
         ins.type = type;
         ins.inst_name = lst[0].toLower(); // 统一做小写转换
         QString vline;
+        uint len = assembler.equlist.size();
         for (int i = 1; i < lst.size(); i++) {
             if (lst[i].mid(0, 1) != "#") {
+                for (uint j = 0; j < len; j++) {
+                    if (lst[i].simplified() == assembler.equlist[j].name) {
+                        lst[i] = assembler.equlist[j].value;
+                        break;
+                    }
+                }
                 vline += " ";
                 vline += lst[i];
             }
@@ -95,6 +103,7 @@ void Mainwindow::dataProcess(QString input) {
         return ;    //遇到注释行或空行则跳过
 
     QList<QString>lst = input.simplified().split(" ");
+    // 定义的是数据变量
     if (lst[0].mid(lst[0].length() - 1, 1) == ":") {
         struct Assembler::var newVar;
         newVar.type = assembler.matchType(lst[1].toLower(), DATA_MODE); // 判断变量类型
@@ -158,8 +167,18 @@ void Mainwindow::dataProcess(QString input) {
             address += newVar.size;
         }
         else
-            assembler.error_no = TYPE_ERROR;
+            assembler.error_no = DFORMAT_ERROR;
     }
+    // 定义的是宏常量
+    else if (lst[1].simplified() == QString("EQU")) {
+        struct Assembler::equ newEQU;
+        newEQU.name = lst[0].simplified();
+        newEQU.value = lst[2].simplified();
+        assembler.equlist.push_back(newEQU);
+    }
+    // 否则，类型错误
+    else
+        assembler.error_no = DFORMAT_ERROR;
 }
 
 /*
@@ -226,10 +245,16 @@ void Mainwindow::lineProcess(int *error_line, int *error_instno) {
         else if ((data_flag && !text_flag && dataStartlineNo < textStartlineNo)
                  || (text_flag && data_flag && textStartlineNo < dataStartlineNo))
             dataProcess(input[i]);
-        // 出错就提前退出
-        if (assembler.error_no != NO_ERROR) {
+        // 指令行出错
+        if (assembler.error_no != NO_ERROR && assembler.error_no != DFORMAT_ERROR) {
             *error_line = debugger->stdinput.back().lineno;
             *error_instno = debugger->stdinput.size() - 1;
+            return ;
+        }
+        // 数据行出错
+        else if (assembler.error_no == DFORMAT_ERROR) {
+            *error_line = lineCnt + 1;
+            *error_instno = -1;
             return ;
         }
         // 否则总行数+1

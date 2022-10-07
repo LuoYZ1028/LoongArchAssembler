@@ -81,6 +81,7 @@ private:
      * 杂项功能函数
      */
     QString error_info;                 // 错误信息
+    void transPseudoInst();             // 伪指令转换
     void initDebugInst();               // 指令展示初始化
     void initDebugger();                // Debugger初始化
     void refreshDisplay();              // Debugger界面刷新

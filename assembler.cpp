@@ -28,7 +28,7 @@ void Assembler::changeTSA(QString input) {
 int Assembler::matchType(QString name, int mode){
     // name已做过小写转换
     if (mode == INST_MODE) {
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < TOT_TYPE_NUM; i++) {
             int upbound = inst_type_num[i];
             for (int j = 0; j < upbound; j++) {
                 switch (i)
@@ -65,13 +65,18 @@ int Assembler::matchType(QString name, int mode){
                     if (_2RType[j] == name)
                         return _BAR;
                     break;
+                case 8:
+                    if (_pseudoType[j] == name)
+                        return PSEUDO;
+                    break;
                 default:
                     return TYPE_ERROR;
                 }
             }
         }
         return TYPE_ERROR;
-    } else if (mode == DATA_MODE) {
+    }
+    else if (mode == DATA_MODE) {
         if (name == ".asciz")
             return ASCIZ;
         else if (name == ".word")
@@ -90,15 +95,16 @@ QString Assembler::asm2Machine(instruction input) {
     QString result;
     switch(input.type)
     {
-    case _3R:       valid++;    result = _3RTypeASM(input); break;
-    case _2R:       valid++;    result = _2RTypeASM(input); break;
-    case _2R_I8:    valid++;    result = _2RI8TypeASM(input); break;
-    case _2R_I12:   valid++;    result = _2RI12TypeASM(input); break;
-    case _2R_I14:   valid++;    result = _2RI14TypeASM(input); break;
+    case _3R:       valid++;    result = _3RTypeASM(input);     break;
+    case _2R:       valid++;    result = _2RTypeASM(input);     break;
+    case _2R_I8:    valid++;    result = _2RI8TypeASM(input);   break;
+    case _2R_I12:   valid++;    result = _2RI12TypeASM(input);  break;
+    case _2R_I14:   valid++;    result = _2RI14TypeASM(input);  break;
     case _2R_I16:   valid++;    result = _2RI16TypeASM(input, valid); break;
-    case _1R_I20:   valid++;    result = _1RI20TypeASM(input); break;
-    case _BAR:      valid++;    result = _BARTypeASM(input); break;
-    default:                    result =  "UNKNOWN_ERROR"; break;
+    case _1R_I20:   valid++;    result = _1RI20TypeASM(input);  break;
+    case _BAR:      valid++;    result = _BARTypeASM(input);    break;
+    case PSEUDO:    valid++;    result = _pseudoTypeASM(input); break;
+    default:                    result =  "UNKNOWN_ERROR";      break;
     }
     return result;
 }
@@ -173,7 +179,8 @@ QString Assembler::_3RTypeASM(instruction input) {
 
         if (rd == ERROR_REG || rj == ERROR_REG || rk == ERROR_REG)
             return "REGNO_ERROR";
-
+        else if (rd == ZERO_REG)
+            return "RD_ZERO";
         return op + rk + rj + rd;
     }
     // 中断和异常没有寄存器参数，只有一个code
@@ -217,17 +224,24 @@ QString Assembler::_2RTypeASM(instruction input) {
         op = "0000000000000000011000";
         rd = "00000";
         rj = int2Binary(getRegID(value[0]), 5, UNSIGNED);
+        if (rj == ZERO_REG)
+            return "RD_ZERO";
     } else if (input.inst_name == "rdcntvl.w") {
         op = "0000000000000000011000";
         rj = "00000";
         rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
+        if (rd == ZERO_REG)
+            return "RD_ZERO";
     } else if (input.inst_name == "rdcntvh.w") {
         op = "0000000000000000011001";
         rj = "00000";
         rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
+        if (rd == ZERO_REG)
+            return "RD_ZERO";
     }
     if (rd == ERROR_REG || rj == ERROR_REG)
         return "REGNO_ERROR";
+
     return op + rj + rd;
 }
 
@@ -258,18 +272,38 @@ QString Assembler::_2RI8TypeASM(instruction input) {
 
     // 5bit无符号数转化
     int num;
-    // 分为16进制和10进制两种情况
+    char* s;
+    QByteArray ascii = value[2].toLatin1(); // 转ASCII码
+    s = ascii.data();
+    // 分为16进制和10进制两种情况，不排除宏常量的使用
     if(value[2].mid(0,2) == "0x")
         num = hex2Int(value[2]);
-    else
+    else if (s[0] <= '9' && s[0] >= '0')
         num = value[2].toInt();
+    else {
+        bool match_flag = false;
+        for (uint i = 0; i < equlist.size(); i++) {
+            if (value[2].simplified() == equlist[i].name) {
+                if (equlist[i].value.mid(0, 2) == "0x")
+                    num = hex2Int(equlist[i].value);
+                else
+                    num = equlist[i].value.toInt();
+                match_flag = true;
+                break;
+            }
+        }
+        if (!match_flag)
+            return "UNDEFINED_CONST";
+    }
+
     ui5 = int2Binary(num, 5, UNSIGNED);
     rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
     rj = int2Binary(getRegID(value[1]), 5, UNSIGNED);
 
     if (rd == ERROR_REG || rj == ERROR_REG)
         return "REGNO_ERROR";
-
+    else if (rd == ZERO_REG)
+        return "RD_ZERO";
     return op + ui5 + rj + rd;
 }
 
@@ -330,17 +364,38 @@ QString Assembler::_2RI12TypeASM(instruction input) {
     }
     // 12bit整数转化
     int num;
-    // 分为16进制和10进制两种情况
-    if (value[2].mid(0,2) == "0x")
+    char* s;
+    QByteArray ascii = value[2].toLatin1(); // 转ASCII码
+    s = ascii.data();
+    // 分为16进制和10进制两种情况，不排除宏常量的使用
+    if(value[2].mid(0,2) == "0x")
         num = hex2Int(value[2]);
-    else
+    else if (s[0] <= '9' && s[0] >= '0')
         num = value[2].toInt();
+    else {
+        bool match_flag = false;
+        for (uint i = 0; i < equlist.size(); i++) {
+            if (value[2].simplified() == equlist[i].name) {
+                if (equlist[i].value.mid(0, 2) == "0x")
+                    num = hex2Int(equlist[i].value);
+                else
+                    num = equlist[i].value.toInt();
+                match_flag = true;
+                break;
+            }
+        }
+        if (!match_flag)
+            return "UNDEFINED_CONST";
+    }
+
     imm12 = int2Binary(num, 12, SIGNED);
     rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
     rj = int2Binary(getRegID(value[1]), 5, UNSIGNED);
 
     if (rd == ERROR_REG || rj == ERROR_REG)
         return "REGNO_ERROR";
+    else if (rd == ZERO_REG && input.inst_name != "preld" && input.inst_name.mid(0, 2) != "st")
+        return "RD_ZERO";
 
     return op + imm12 + rj + rd;
 }
@@ -370,11 +425,30 @@ QString Assembler::_2RI14TypeASM(instruction input) {
 
     // 14bit整数转化
     int num;
-    // 分为16进制和10进制两种情况
-    if (value[2].mid(0,2) == "0x")
+    char* s;
+    QByteArray ascii = value[2].toLatin1(); // 转ASCII码
+    s = ascii.data();
+    // 分为16进制和10进制两种情况，不排除宏常量的使用
+    if(value[2].mid(0,2) == "0x")
         num = hex2Int(value[2]);
-    else
+    else if (s[0] <= '9' && s[0] >= '0')
         num = value[2].toInt();
+    else {
+        bool match_flag = false;
+        for (uint i = 0; i < equlist.size(); i++) {
+            if (value[2].simplified() == equlist[i].name) {
+                if (equlist[i].value.mid(0, 2) == "0x")
+                    num = hex2Int(equlist[i].value);
+                else
+                    num = equlist[i].value.toInt();
+                match_flag = true;
+                break;
+            }
+        }
+        if (!match_flag)
+            return "UNDEFINED_CONST";
+    }
+
     imm14 = int2Binary(num, 14, SIGNED);
     rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
     rj = int2Binary(getRegID(value[1]), 5, UNSIGNED);
@@ -437,15 +511,30 @@ QString Assembler::_2RI16TypeASM(instruction input, int position) {
         // 10进制地址
         else if (s[0] <= '9' && s[0] >= '0')
             imm16 = int2Binary(value[2].toInt(), 16, SIGNED);
-        // 如果是借助标号的间接跳转
+        // 如果是借助标号或宏常量的间接跳转
         else {
             bool match_flag = false;
-            for (unsigned int i = 0; i < labellist.size(); i++) {
-                if (value[2] == labellist[i].name) {
-                    match_flag = true;
+            // 是否是已知标号
+            for (uint i = 0; i < labellist.size(); i++) {
+                if (value[2].simplified() == labellist[i].name) {
                     // 虽然实际距离是4的整数倍，但此工作应留给硬件完成
                     int distance = labellist[i].address - position;
                     imm16 = int2Binary(distance, 16, SIGNED);
+                    match_flag = true;
+                    break;
+                }
+            }
+            // 是否是已知宏常量
+            if (!match_flag) {
+                for (uint i = 0; i < equlist.size(); i++) {
+                    if (value[2].simplified() == equlist[i].name) {
+                        if (equlist[i].value.mid(0, 2) == "0x")
+                            imm16 = int2Binary(hex2Int(equlist[i].value), 16, SIGNED);
+                        else
+                            imm16 = int2Binary(equlist[i].value.toInt(), 16, SIGNED);
+                        match_flag = true;
+                        break;
+                    }
                 }
             }
             if (!match_flag)
@@ -467,12 +556,32 @@ QString Assembler::_2RI16TypeASM(instruction input, int position) {
 
         // 16bit整数转化
         int num_0, num_1;
+        char* s;
+        QByteArray ascii = value[0].toLatin1(); // 转ASCII码
+        s = ascii.data();
         // 分为16进制和10进制两种情况
         if (value[0].mid(0,2) == "0x") {
             num_0 = value[0].toInt(NULL, 16);
             num_1 = num_0 >> 16;
-        } else {
+        }
+        else if (s[0] <= '9' && s[0] >= '0'){
             num_0 = value[0].toInt();
+            num_1 = num_0 >> 16;
+        }
+        else {
+            bool match_flag = false;
+            for (uint i = 0; i < equlist.size(); i++) {
+                if (value[0].simplified() == equlist[i].name) {
+                    if (equlist[i].value.mid(0, 2) == "0x")
+                        num_0 = hex2Int(equlist[i].value);
+                    else
+                        num_0 = equlist[i].value.toInt();
+                    match_flag = true;
+                    break;
+                }
+            }
+            if (!match_flag)
+                return "UNDEFINED_CONST";
             num_1 = num_0 >> 16;
         }
         imm16 = int2Binary(num_0, 16, SIGNED);
@@ -507,16 +616,36 @@ QString Assembler::_1RI20TypeASM(instruction input) {
 
     // 20bit整数转化
     int num;
-    // 分为16进制和10进制两种情况
+    char* s;
+    QByteArray ascii = value[1].toLatin1(); // 转ASCII码
+    s = ascii.data();
+    // 分为16进制和10进制两种情况，不排除宏常量的使用
     if(value[1].mid(0,2) == "0x")
-        num = value[1].toInt(NULL, 16);
-    else
+        num = hex2Int(value[1]);
+    else if (s[0] <= '9' && s[0] >= '0')
         num = value[1].toInt();
+    else {
+        bool match_flag = false;
+        for (uint i = 0; i < equlist.size(); i++) {
+            if (value[1].simplified() == equlist[i].name) {
+                if (equlist[i].value.mid(0, 2) == "0x")
+                    num = hex2Int(equlist[i].value);
+                else
+                    num = equlist[i].value.toInt();
+                match_flag = true;
+                break;
+            }
+        }
+        if (!match_flag)
+            return "UNDEFINED_CONST";
+    }
     imm20 = int2Binary(num, 20, SIGNED);
     rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
 
     if (rd == ERROR_REG)
         return "REGNO_ERROR";
+    else if (rd == ZERO_REG)
+        return "RD_ZERO";
 
     return op + imm20 + rd;
 }
@@ -546,13 +675,97 @@ QString Assembler::_BARTypeASM(instruction input) {
 
     // 15bit整数转化
     int num;
-    // 分为16进制和10进制两种情况
+    char* s;
+    QByteArray ascii = value[0].toLatin1(); // 转ASCII码
+    s = ascii.data();
+    // 分为16进制和10进制两种情况，不排除宏常量的使用
     if(value[0].mid(0,2) == "0x")
         num = hex2Int(value[0]);
-    else
+    else if (s[0] <= '9' && s[0] >= '0')
         num = value[0].toInt();
+    else {
+        bool match_flag = false;
+        for (uint i = 0; i < equlist.size(); i++) {
+            if (value[0].simplified() == equlist[i].name) {
+                if (equlist[i].value.mid(0, 2) == "0x")
+                    num = hex2Int(equlist[i].value);
+                else
+                    num = equlist[i].value.toInt();
+                match_flag = true;
+                break;
+            }
+        }
+        if (!match_flag)
+            return "UNDEFINED_CONST";
+    }
     hint = int2Binary(num, 15, SIGNED);
     return op + hint;
+}
+
+QString Assembler::_pseudoTypeASM(instruction input) {
+    QList<QString>value;
+    value = input.valueline.split(",");
+
+    QList<QString>tmp;
+    int value_num = value.size();
+    QString str = value[value_num - 1].remove(QRegExp("\\s"));
+    tmp = str.split("#");
+    value[value_num - 1] = tmp[0];
+
+    if (value_num < 2)
+        return "MISS_AUG";
+    else if (value_num > 2)
+        return "REDUND_AUG";
+
+    QString op, rd, rj, imm;
+    // li.w和la都当成addi.w处理，源寄存器为r0
+    op = "0000001010";
+    rj = "00000";
+    rd = int2Binary(getRegID(value[0]), 5, UNSIGNED);
+    if (rd == ERROR_REG)
+        return "REGNO_ERROR";
+
+    // 区别在imm的值，li.w可直接赋值，la则需要比对每个数据变量
+    if (input.inst_name == "li.w") {
+        int num;
+        char* s;
+        QByteArray ascii = value[0].toLatin1(); // 转ASCII码
+        s = ascii.data();
+        if(value[1].mid(0,2) == "0x")
+            num = hex2Int(value[1]);
+        else if (s[0] <= '9' && s[0] >= '0')
+            num = value[1].toInt();
+        else {
+            bool match_flag = false;
+            for (uint i = 0; i < equlist.size(); i++) {
+                if (value[1].simplified() == equlist[i].name) {
+                    if (equlist[i].value.mid(0, 2) == "0x")
+                        num = hex2Int(equlist[i].value);
+                    else
+                        num = equlist[i].value.toInt();
+                    match_flag = true;
+                    break;
+                }
+            }
+            if (!match_flag)
+                return "UNDEFINED_CONST";
+        }
+        imm = int2Binary(num, 12, SIGNED);
+    }
+    else {
+        uint size = varlist.size();
+        bool match_flag = false;
+        for (uint i = 0; i < size; i++) {
+            if (value[1].simplified() == varlist[i].name) {
+                imm = int2Binary(varlist[i].addr, 12, SIGNED);
+                match_flag = true;
+                break;
+            }
+        }
+        if (!match_flag)
+            return "UNDEFINED_VAR";
+    }
+    return op + imm + rj + rd;
 }
 
 // 16进制转10进制

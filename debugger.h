@@ -9,8 +9,9 @@
 #include "assembler.h"
 
 // 其它宏定义
-#define MAX_MEMSIZE 1024
-#define DEFAULT_BP  0xffff
+#define MAX_INST_NUM    1000
+#define MAX_MEMSIZE     2048
+#define DEFAULT_BP      0xffff
 
 using namespace std;
 

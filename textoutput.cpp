@@ -15,6 +15,12 @@ void Mainwindow::errorDetect(QString result) {
         assembler.error_no = UNKNOWN_ERROR;
     else if (result == "UNDEFINED_LABEL")
         assembler.error_no = UNDEFINED_LABEL;
+    else if (result == "UNDEFINED_CONST")
+        assembler.error_no = UNDEFINED_CONST;
+    else if (result == "UNDEFINED_VAR")
+        assembler.error_no = UNDEFINED_VAR;
+    else if (result == "RD_ZERO")
+        assembler.error_no = RD_ZERO;
 }
 
 /*
@@ -40,6 +46,18 @@ void Mainwindow::showInfo(int error_line, int error_instno) {
         break;
     case UNDEFINED_LABEL:
         error_info = "Error! LABEL used without definition!\n";
+        break;
+    case UNDEFINED_CONST:
+        error_info = "Error! CONST used without definition!\n";
+        break;
+    case UNDEFINED_VAR:
+        error_info = "Error! Variable used without definition!\n";
+        break;
+    case DFORMAT_ERROR:
+        error_info = "Error! Some format errors in data section!\n";
+        break;
+    case RD_ZERO:
+        error_info = "Error! Illegal position of $r0 or $zero!\n";
         break;
     case SEG_ERROR:
         error_info = "Error! FIRST LINE must start with \".text\" or \".data\"!\n";
@@ -72,7 +90,8 @@ void Mainwindow::showInfo(int error_line, int error_instno) {
         error_info = "Error happend in Line ";
         error_info += QString::number(error_line, 10);
         ui->text_output->append(error_info);
-        ui->text_output->append(debugger->inst_vec[error_instno]);
+        if (error_instno >= 0)
+            ui->text_output->append(debugger->inst_vec[error_instno]);
     }
 }
 
@@ -188,11 +207,34 @@ void Mainwindow::showOutput() {
 }
 
 /*
+ * 将li.w和la转换为对应的addi.w
+ * 借助反汇编思想似乎更有效？
+ */
+void Mainwindow::transPseudoInst() {
+    uint num = debugger->stdinput.size();
+    for (uint i = 0; i < num; i++) {
+        if (debugger->stdinput[i].type == PSEUDO) {
+            debugger->stdinput[i].type = _2R_I12;
+            QString bin = assembler.int2Binary(output[i].toInt(NULL, 16), 32, UNSIGNED);
+            QString rd, rj, imm;
+            rj = "$zero";
+            rd = assembler.getRegName(bin.mid(27, 5).toInt(NULL, 2), GET_NAME);
+            int tmp = bin.mid(10, 12).toInt(NULL, 2);
+            imm = QString::number(tmp, 16);
+            debugger->stdinput[i].inst_name = "addi.w";
+            debugger->stdinput[i].valueline = " " + rd + ", " + rj + ", 0x" + imm;
+        }
+    }
+}
+
+/*
  * 将汇编完成后的有效指令序列输出
  */
 void Mainwindow::initDebugInst() {
     // 清除脏数据
     ui->instText->clear();
+    // 伪指令转换
+    transPseudoInst();
     if (assembler.error_no == NO_ERROR) {
         QString tmp = "Address\t\tInstruction\n";
         int addr = 0;
@@ -210,4 +252,5 @@ void Mainwindow::initDebugInst() {
         QString tmp = "You need to finish your Program and fix all Errors first!";
         ui->instText->append(tmp);  // 错误提示
     }
+    ui->instText->moveCursor(QTextCursor::Start);
 }

@@ -18,6 +18,7 @@
 #define _2R_I16_NUM 9
 #define _1R_I20_NUM 2
 #define _BAR_NUM    2
+#define _PSEUDO_NUM 2
 
 /*
  * 不同类型指令的编号
@@ -30,7 +31,8 @@
 #define _2R_I16 5
 #define _1R_I20 6
 #define _BAR    7
-
+#define PSEUDO  8
+#define TOT_TYPE_NUM 9
 /*
  * 数据变量类型
  */
@@ -50,17 +52,23 @@
 #define REDUND_AUG      -4
 #define UNKNOWN_ERROR   -5
 #define UNDEFINED_LABEL -6
-#define SEG_ERROR       -7
-#define MISS_TEXTSEG    -8
-#define REDUND_TEXTSEG  -9
-#define REDUND_DATASEG  -10
-#define ORIGIN_ERROR    -11
-#define ORIGIN_VERROR   -12
+#define UNDEFINED_CONST -7
+#define UNDEFINED_VAR   -8
+#define DFORMAT_ERROR   -9
+#define RD_ZERO         -10
+#define SEG_ERROR       -100
+#define MISS_TEXTSEG    -101
+#define REDUND_TEXTSEG  -102
+#define REDUND_DATASEG  -103
+#define ORIGIN_ERROR    -104
+#define ORIGIN_VERROR   -105
+
 #define NO_ERROR        0
 
 /*
  * 其它宏常量
  */
+#define ZERO_REG        "00000"
 #define UNSIGNED        0
 #define SIGNED          1
 #define MAX_LINE_NUM    1000
@@ -106,6 +114,16 @@ public:
     std::vector<var> varlist;   // 保存数据变量
 
     /*
+     * 宏定义结构体，名称+数值
+     */
+    struct equ
+    {
+        QString name;
+        QString value;
+    };
+    std::vector<equ> equlist;   // 宏常量表
+
+    /*
      * 指令结构体，类型+行号+指令名+值域
      */
     struct instruction
@@ -147,8 +165,9 @@ public:
     /*
      * 功能public成员
      */
-    int inst_type_num[8] = {_3R_NUM, _2R_NUM, _2R_I8_NUM, _2R_I12_NUM,
-                           _2R_I14_NUM, _2R_I16_NUM, _1R_I20_NUM, _BAR_NUM};
+    int inst_type_num[TOT_TYPE_NUM] = { _3R_NUM, _2R_NUM, _2R_I8_NUM, _2R_I12_NUM,
+                                        _2R_I14_NUM, _2R_I16_NUM, _1R_I20_NUM,
+                                        _BAR_NUM, _PSEUDO_NUM };
     QString Hex[16] = {
         "0","1","2","3",
         "4","5","6","7",
@@ -202,6 +221,7 @@ protected:
                                             "bgeu"};
     QString _1R_I20Type [_1R_I20_NUM]   =   {"lu12i.w","pcaddu12i"};
     QString _barType    [_BAR_NUM]      =   {"dbar","ibar"};
+    QString _pseudoType [_PSEUDO_NUM]   =   {"li.w","la"};
 
 private:
     /*
@@ -215,7 +235,7 @@ private:
     QString _2RI16TypeASM(instruction input, int valid);// 2RI16类型转换（跳转指令）
     QString _1RI20TypeASM(instruction input);           // 1RI20类型转换
     QString _BARTypeASM(instruction input);             // BAR类型转换
-
+    QString _pseudoTypeASM(instruction input);          // 伪指令转换
 };
 
 #endif // ASSEMBLER_H

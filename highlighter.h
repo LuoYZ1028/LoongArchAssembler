@@ -42,6 +42,7 @@ private:
     QTextCharFormat multiLineCommentFormat;
     QTextCharFormat quotationFormat;
     QTextCharFormat functionFormat;
+    QTextCharFormat constFormat;
 };
 
 #endif // HIGHLIGHTER_H

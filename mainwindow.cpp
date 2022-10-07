@@ -32,9 +32,9 @@ Mainwindow::Mainwindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::Mainwi
     ui->text_output->setStyleSheet("background:black;color:white");
     // 间隔行颜色差分
     ui->output_table->setAlternatingRowColors(true);
-    ui->output_table->setStyleSheet("alternate-background-color:#000066;");
+    ui->output_table->setStyleSheet("alternate-background-color:#455364;");
     ui->data_table->setAlternatingRowColors(true);
-    ui->data_table->setStyleSheet("alternate-background-color:#000066");
+    ui->data_table->setStyleSheet("alternate-background-color:#455364");
     // 信号连接
     connect(ui->menuBar,SIGNAL(triggered(QAction*)), this, SLOT(trigerMenu(QAction*)));
     connect(ui->instText, SIGNAL(cursorPositionChanged()), this, SLOT(highlightDebuggerLine_inst()));
@@ -254,6 +254,10 @@ void Mainwindow::on_actionRun_triggered() {
     uint num = 0;
     if (debugger->getPC() / 4 < debugger->stdinput.size())
         num = debugger->run(assembler);
+    if (num == MAX_INST_NUM) {
+        QMessageBox::critical(this, tr("错误"), tr("到达指令计数上限，请检查是否存在死循环！"));
+        return ;
+    }
     if (pre_row + num + 1 == debugger->inst_vec.size()) {
         QMessageBox::information(this, tr("提示"), tr("已执行完所有指令，请重置Debugger！"));
         return ;

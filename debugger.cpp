@@ -40,12 +40,14 @@ uint Debugger::getChangedMemAddr() {
     return tmp;
 }
 
-// 直接莽
+// 直接莽，附加死循环检测
 int Debugger::run(Assembler assembler) {
     uint cnt = 0;
     while (step(assembler)) {
         cnt++;
         if (pc == breakpoint || pc / 4 == stdinput.size() - 1)
+            break;
+        else if (cnt == MAX_INST_NUM)
             break;
     }
     return cnt;

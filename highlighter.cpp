@@ -4,6 +4,14 @@ Highlighter::Highlighter(QTextDocument *parent) : QSyntaxHighlighter(parent)
 {
     HighlightingRule rule;
 
+    // const宏常量
+    constFormat.setFontWeight(QFont::Bold);
+    QColor color = QColor(Qt::cyan).darker(100);
+    constFormat.setForeground(color);
+    rule.pattern = QRegularExpression("\\b[_A-Z]+[A-Z0-9]*\\b");
+    rule.format = constFormat;
+    highlightingRules.append(rule);
+
     // .开头标志
     classFormat.setFontWeight(QFont::Bold);
     classFormat.setForeground(Qt::magenta);
@@ -40,7 +48,8 @@ Highlighter::Highlighter(QTextDocument *parent) : QSyntaxHighlighter(parent)
 
                     << "\\blu12i.w\\b" << "\\bpcaddu12i\\b"
 
-                    << "\\bdbar\\b" << "\\bibar\\b";
+                    << "\\bdbar\\b" << "\\bibar\\b"
+                    << "\\bEQU\\b" << "\\bli.w\\b" << "\\bla\\b";
     foreach (const QString &pattern, keywordPatterns) {
         rule.pattern = QRegularExpression(pattern);
         rule.format = keywordFormat;
@@ -78,6 +87,7 @@ Highlighter::Highlighter(QTextDocument *parent) : QSyntaxHighlighter(parent)
     rule.pattern = QRegularExpression("\\b0x[0-9a-f]{1,8}\\b");
     rule.format = functionFormat;
     highlightingRules.append(rule);
+
 }
 
 void Highlighter::highlightBlock(const QString &text)
