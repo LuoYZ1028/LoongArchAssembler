@@ -2,15 +2,16 @@
 #include "ui_mainwindow.h"
 
 /*
- * 清理向量
+ * 清理工作区
  */
-void Mainwindow::vectorClear() {
+void Mainwindow::workspaceClear() {
     input.clear();
     debugger->stdinput.clear();
     assembler.labellist.clear();
     assembler.varlist.clear();
     assembler.equlist.clear();
     assembler.valid = 0;
+    data_addr = 0;
     assembler.error_no = NO_ERROR;
     valid = 0;
     output.clear();
@@ -25,8 +26,9 @@ void Mainwindow::readInput() {
     QTextDocument* doc = ui->asm_input->document();
     int lines = doc->lineCount();
     for (int x = 0; x < lines; x++) {
-        QTextBlock textLine = doc->findBlockByNumber(x);
-        input.push_back(textLine.text());
+        QTextBlock textLine = doc->findBlockByNumber(x);    // 获取单独一行
+        QString text = textLine.text();
+        input.push_back(text);   // 推入输入缓冲区
     }
 }
 
@@ -36,7 +38,6 @@ void Mainwindow::readInput() {
 void Mainwindow::instProcess(QString input, int lineCnt) {
     if (input.simplified().isEmpty() || input.simplified().mid(0, 1) == "#")
         return ;    //遇到注释行或空行则跳过
-
     QList<QString>lst = input.simplified().split(" ");
     if (input.mid(input.length() - 1, 1) == ":") {
         //遇到label就记录其名称和位置
@@ -94,9 +95,6 @@ void Mainwindow::instProcess(QString input, int lineCnt) {
  * 处理数据行
  */
 void Mainwindow::dataProcess(QString input) {
-    static uint address = 0;
-    if (has_assembled == true)
-        address = 0;
     static bool has_word = false;
     static bool has_space = false;
     if (input.simplified().isEmpty() || input.simplified().mid(0, 2) == "#")
@@ -157,14 +155,14 @@ void Mainwindow::dataProcess(QString input) {
             else
                 newVar.size = ele_size * (lst.size() - 2);
             // 内部对齐问题
-            if (has_space && address % SPACE_BYTE)
-                address = (address / SPACE_BYTE + 1) * SPACE_BYTE;
-            else if (has_word && address % WORD_BYTE)
-                address = (address / WORD_BYTE + 1) * WORD_BYTE;
-            newVar.addr = address;
+            if (has_space && data_addr % SPACE_BYTE)
+                data_addr = (data_addr / SPACE_BYTE + 1) * SPACE_BYTE;
+            else if (has_word && data_addr % WORD_BYTE)
+                data_addr = (data_addr / WORD_BYTE + 1) * WORD_BYTE;
+            newVar.addr = data_addr;
             assembler.varlist.push_back(newVar);
             // 计算新地址
-            address += newVar.size;
+            data_addr += newVar.size;
         }
         else
             assembler.error_no = DFORMAT_ERROR;
@@ -190,24 +188,38 @@ void Mainwindow::lineProcess(int *error_line, int *error_instno) {
     bool data_flag = false;
     int textStartlineNo = MAX_LINE_NUM;
     int dataStartlineNo = MAX_LINE_NUM;
-    int lineCnt = 0;
+    int lineCnt = 0;    // 表示正准备处理的行号，从0开始计数
+    int annote_cnt = 0; // 开头注释行所占行数
+    // 存在多行注释时
+    if (input[0].contains("/*", Qt::CaseInsensitive)) {
+        // 跳过多行注释中间部分
+        while (true) {
+            if (input[annote_cnt].contains("*/", Qt::CaseInsensitive))
+                break;
+            annote_cnt++;
+        }
+    }
 
+    // .text或.data必须单独一行
+    lineCnt = annote_cnt ? annote_cnt + 1 : 0;
     // 匹配代码段、数据段的起始标志
-    if (input[0].mid(0, 5) == ".text") {
+    if (input[lineCnt].mid(0, 5) == ".text") {
         text_flag = true;
         textStartlineNo = lineCnt;
         lineCnt++;
-    } else if (input[0].mid(0, 5) == ".data") {
+    }
+    else if (input[lineCnt].mid(0, 5) == ".data") {
         data_flag = true;
         dataStartlineNo = lineCnt;
         lineCnt++;
-    } else {
+    }
+    else {
         // 第一行必然是.text或.data，否则格式有误
         assembler.error_no = SEG_ERROR;
         return ;
     }
 
-    for (uint i = 1; i < input.size(); i++) {
+    for (uint i = lineCnt; i < input.size(); i++) {
         // 标志检测，若出现冗余则有错
         if (!text_flag && input[i].mid(0, 5) == ".text") {
             text_flag = true;
@@ -237,6 +249,23 @@ void Mainwindow::lineProcess(int *error_line, int *error_instno) {
             return ;
         }
 
+        // 存在多行注释时
+        // 跳过多行注释中间部分
+        if (input[i].contains("/*", Qt::CaseInsensitive)) {
+            int idx = input[i].indexOf("/*");
+            input[i] = input[i].left(idx);
+            uint tmp = i;
+            while (true) {
+                if (input[tmp].contains("*/", Qt::CaseInsensitive) || tmp == input.size()) {
+                    int idx = input[tmp].indexOf("*/");
+                    input[tmp] = input[tmp].mid(idx+2, input[tmp].length() - (idx+2));
+                    break;
+                }
+                if (tmp > i)
+                    input[tmp] = "";
+                tmp++;
+            }
+        }
         // 代码段处理
         if ((text_flag && !data_flag && textStartlineNo < dataStartlineNo)
             || (text_flag && data_flag && textStartlineNo > dataStartlineNo))

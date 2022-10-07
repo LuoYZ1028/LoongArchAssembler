@@ -49,8 +49,8 @@ private:
     /*
      * 汇编处理工序
      */
-    void vectorClear();                             // 清空堆栈
-    void readInput();                               // 读取输入
+    void workspaceClear();                              // 清空堆栈
+    void readInput();                                   // 读取输入
     void lineProcess(int *error_line, int *error_instno);// 按行处理
     void instProcess(QString input, int lineCnt);        // 指令处理
     void dataProcess(QString input);                     // 数据处理
@@ -89,6 +89,7 @@ private:
     void refreshMemLine(int addr);      // 刷新某一行内容
     int valid;
     bool has_assembled;
+    int data_addr;
 
 
 public slots:

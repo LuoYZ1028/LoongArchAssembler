@@ -206,7 +206,7 @@ void Mainwindow::on_actionSavefile_triggered() {
 void Mainwindow::on_actionAssemble_triggered() {
     // 将视角拉回编辑页
     ui->tabWidget->setCurrentIndex(0);
-    vectorClear();
+    workspaceClear();
     readInput();
     int error_line = 0, error_instno = 0;
     lineProcess(&error_line, &error_instno);
@@ -314,7 +314,7 @@ void Mainwindow::on_actionExit_triggered() {
     btn = QMessageBox::question(this, tr("提示"), tr("确实要退出吗?"), QMessageBox::Yes|QMessageBox::No);
     if (btn == QMessageBox::Yes) {
         QMessageBox::StandardButton btn;
-        btn = QMessageBox::question(this, tr("警告"), tr("结果保存好了吗?"), QMessageBox::Yes|QMessageBox::No);
+        btn = QMessageBox::question(this, tr("提示"), tr("结果保存好了吗?"), QMessageBox::Yes|QMessageBox::No);
         if (btn == QMessageBox::Yes)
             exit(0);
     }
