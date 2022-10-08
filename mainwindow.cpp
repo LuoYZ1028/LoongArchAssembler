@@ -124,12 +124,13 @@ void Mainwindow::refreshDisplay() {
 void Mainwindow::refreshWholeMem() {
     ui->memoryText->clear();
     QString tmp = "Address\t\tHex\t\tContents\n";
-    for (uint i = 0; i < debugger->memoryText.size(); i++) {
-        tmp += debugger->memoryText[i].addr;
+    uint list_size = debugger->getMemoTextSize();
+    for (uint i = 0; i < list_size; i++) {
+        tmp += debugger->getMemoTextAddr(i);
         tmp += "\t";
-        tmp += debugger->memoryText[i].hex;
+        tmp += debugger->getMemoTextHex(i);
         tmp += "\t";
-        tmp += debugger->memoryText[i].asciz;
+        tmp += debugger->getMemoTextAsciz(i);
         tmp += "\n";
     }
     ui->memoryText->setText(tmp);
@@ -141,7 +142,7 @@ void Mainwindow::highlightCurrentLine() {
     if (!(ui->asm_input->isReadOnly())) {
         QTextEdit::ExtraSelection selection;
         QColor lineColor;
-        if (assembler.error_no == NO_ERROR)
+        if (assembler.getErrorno() == NO_ERROR)
             lineColor = QColor(Qt::darkGreen).darker(200);
         else
             lineColor = QColor(Qt::darkRed);
@@ -185,7 +186,7 @@ void Mainwindow::on_tabWidget_tabBarClicked(int index) {
         QMessageBox::warning(this, tr("警告"), tr("当前代码尚未Assemble，请先使用Build(F5)！"));
         return ;
     }
-    else if ((index == 2 || index == 1) && assembler.error_no != NO_ERROR) {
+    else if ((index == 2 || index == 1) && assembler.getErrorno() != NO_ERROR) {
         QMessageBox::warning(this, tr("警告"), tr("代码有Error，请先修改您的代码然后重新Build(F5)！"));
     }
 }
@@ -208,14 +209,13 @@ void Mainwindow::on_actionAssemble_triggered() {
     ui->tabWidget->setCurrentIndex(0);
     workspaceClear();
     readInput();
-    int error_line = 0, error_instno = 0;
-    lineProcess(&error_line, &error_instno);
-    if (assembler.error_no == NO_ERROR)
-        error_line = transCode(&error_instno);
-    showInfo(error_line, error_instno);
+    lineProcess();
+    if (assembler.getErrorno() == NO_ERROR)
+        transCode();
+    showInfo();
     showOutput();
     has_assembled = true;
-    if (assembler.error_no == NO_ERROR) {
+    if (assembler.getErrorno() == NO_ERROR) {
         initDebugInst();
         initDebugger();
         debugger->reset(assembler);
@@ -258,7 +258,7 @@ void Mainwindow::on_actionRun_triggered() {
         QMessageBox::critical(this, tr("错误"), tr("到达指令计数上限，请检查是否存在死循环！"));
         return ;
     }
-    if (pre_row + num + 1 == debugger->inst_vec.size()) {
+    if (pre_row + num + 1 == debugger->getInstVecSize()) {
         QMessageBox::information(this, tr("提示"), tr("已执行完所有指令，请重置Debugger！"));
         return ;
     }
@@ -292,6 +292,10 @@ void Mainwindow::on_actionStep_triggered() {
     else {
         QMessageBox::information(this, tr("提示"), tr("已执行完所有指令，Debugger Reset!"));
         debugger->reset(assembler);
+        ui->instText->moveCursor(QTextCursor::Start);
+        refreshDisplay();
+        refreshWholeMem();
+        return ;
     }
     refreshDisplay();
     // 获取内存变更的真实地址
@@ -408,11 +412,11 @@ void Mainwindow::refreshMemLine(int addr) {
 
     // 再将新的内容插入
     QString tmp = "";
-    tmp += debugger->memoryText[addr].addr;
+    tmp += debugger->getMemoTextAddr(addr);
     tmp += "\t";
-    tmp += debugger->memoryText[addr].hex;
+    tmp += debugger->getMemoTextHex(addr);
     tmp += "\t";
-    tmp += debugger->memoryText[addr].asciz;
+    tmp += debugger->getMemoTextAsciz(addr);
     tmp += "\n";
     tc.insertText(tmp);
 
@@ -445,7 +449,7 @@ void Mainwindow::on_enableBP_toggled(bool checked) {
             QMessageBox::warning(this, tr("警告"), tr("断点地址应该是4的整数倍（包括0）！"));
             return ;
         }
-        if (bp / 4 >= debugger->inst_vec.size()) {
+        if (bp / 4 >= debugger->getInstVecSize()) {
             QMessageBox::critical(this, tr("错误"), tr("断点地址越界！"));
             return ;
         }
@@ -463,11 +467,11 @@ void Mainwindow::on_asm_input_textChanged() {
 void Mainwindow::on_actionAbout_triggered() {
     QMessageBox::about(this, tr("About LoongArch Assembler"),
                     tr("<p><b>LoongArch Assembler</b></p> " \
-                       "<p>用于软件设计与实践B课程项目</p>" \
                        "<p>自带Debug功能的汇编代码转16进制机器码的汇编器</p>" \
-                       "<p><strong>Created by 罗翊洲 at 2022/09/29</strong></p>" \
+                       "<p><strong>Created by 罗翊洲 at 2022</strong></p>" \
                        "<p>Email: 1713700496@qq.com</p>" \
                        "<p>哈尔滨工业大学（深圳）计算机科学与技术学院</p>" \
-                       "<p><em>version 2.0</em></p>" \
+                       "<p><em>version 2.3</em></p>" \
+                       "<a href=\"https://github.com/LuoYZ1028/LoongArchAssembler\" target=\"_red\">仓库链接</a>" \
                        ""));
 }

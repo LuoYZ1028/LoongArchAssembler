@@ -98,7 +98,6 @@ public:
         QString name;
         int     address;
     };
-    std::vector<label> labellist;   // 标号向量表
 
     /*
      * 数据变量结构体，名称+类型+地址+大小+内容
@@ -111,7 +110,6 @@ public:
         int size;
         QString contents;
     };
-    std::vector<var> varlist;   // 保存数据变量
 
     /*
      * 宏定义结构体，名称+数值
@@ -121,7 +119,6 @@ public:
         QString name;
         QString value;
     };
-    std::vector<equ> equlist;   // 宏常量表
 
     /*
      * 指令结构体，类型+行号+指令名+值域
@@ -140,10 +137,10 @@ public:
     QString asm2Machine(instruction input);
 
     /*
-     * 代码段起始地址修改函数
+     * 代码段起始地址（TSA）修改函数
      */
-    void changeTSA(QString input);                  // 修改代码段起始地址
-    uint get_TSA() { return textStartAddr; }       // 返回TSA
+    void changeTSA(QString input);
+    uint get_TSA() { return textStartAddr; }
 
     /*
      * 进制转换函数
@@ -163,20 +160,41 @@ public:
     QString getRegName(int id, int mode);
 
     /*
-     * 功能public成员
+     * 改变or获取私有成员的接口函数
      */
-    int inst_type_num[TOT_TYPE_NUM] = { _3R_NUM, _2R_NUM, _2R_I8_NUM, _2R_I12_NUM,
-                                        _2R_I14_NUM, _2R_I16_NUM, _1R_I20_NUM,
-                                        _BAR_NUM, _PSEUDO_NUM };
-    QString Hex[16] = {
-        "0","1","2","3",
-        "4","5","6","7",
-        "8","9","A","B",
-        "C","D","E","F"
-    };
-    int valid = 0;  // 有效语句条数
-    int error_no = NO_ERROR;
+    int getValid()                  { return valid; }
+    void incValid()                 { valid++; }
+    void clearValid()               { valid = 0; }
 
+    int getErrorno()                { return error_no; }
+    void setErrorno(int eno)        { error_no = eno; }
+
+    int getErrorLine()              { return error_line; }
+    void setErrorLine(int eline)    { error_line = eline; }
+
+    int getErrorInst()              { return error_instno; }
+    void setErrorInst(int einst)    { error_instno = einst; }
+
+    int getLabelSize()              { return labellist.size(); }
+    QString getLabelName(int idx)   { return labellist[idx].name; }
+    int getLabelAddr(int idx)       { return labellist[idx].address; }
+    void clearLabelList()           { labellist.clear(); }
+    void pushbackLabel(struct label newlabel);
+
+    int getVarlistSize()            { return varlist.size(); }
+    QString getVarName(int idx)     { return varlist[idx].name; }
+    int getVarAddr(int idx)         { return varlist[idx].addr; }
+    int getVarType(int idx)         { return varlist[idx].type; }
+    int getVarSize(int idx)         { return varlist[idx].size; }
+    QString getVarContents(int idx) { return varlist[idx].contents; }
+    void clearVarlist()             { varlist.clear(); }
+    void pushbackVar(struct var newvar);
+
+    int getEqulistSize()            { return equlist.size(); }
+    QString getEquName(int idx)     { return equlist[idx].name; }
+    QString getEquValue(int idx)    { return equlist[idx].value; }
+    void clearEqulist()             { equlist.clear(); }
+    void pushbackEqu(struct equ newequ);
 
 protected:
     uint textStartAddr; // 记录代码段起始地址
@@ -223,6 +241,14 @@ protected:
     QString _barType    [_BAR_NUM]      =   {"dbar","ibar"};
     QString _pseudoType [_PSEUDO_NUM]   =   {"li.w","la"};
 
+    int inst_type_num[TOT_TYPE_NUM] = { _3R_NUM, _2R_NUM, _2R_I8_NUM, _2R_I12_NUM,
+                                        _2R_I14_NUM, _2R_I16_NUM, _1R_I20_NUM,
+                                        _BAR_NUM, _PSEUDO_NUM };
+    QString Hex[16] = { "0","1","2","3",
+                        "4","5","6","7",
+                        "8","9","A","B",
+                        "C","D","E","F" };
+
 private:
     /*
      * 各类指令的翻译功能函数
@@ -236,6 +262,23 @@ private:
     QString _1RI20TypeASM(instruction input);           // 1RI20类型转换
     QString _BARTypeASM(instruction input);             // BAR类型转换
     QString _pseudoTypeASM(instruction input);          // 伪指令转换
+
+    /*
+     * 4个私有成员
+     * 分别表示有效语句数,错误侦测号,错误发生行,错误指令号
+     */
+    int valid = 0;
+    int error_no = NO_ERROR;
+    int error_line = 0;
+    int error_instno = 0;
+
+    /*
+     * 3个结构体向量私有成员，分别是：
+     * 标号表，向量表，宏定义表
+     */
+    std::vector<label> labellist;
+    std::vector<var> varlist;
+    std::vector<equ> equlist;
 };
 
 #endif // ASSEMBLER_H

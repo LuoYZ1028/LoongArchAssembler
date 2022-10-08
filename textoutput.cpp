@@ -6,28 +6,28 @@
  */
 void Mainwindow::errorDetect(QString result) {
     if (result == "REGNO_ERROR")
-        assembler.error_no = REGNO_ERROR;
+        assembler.setErrorno(REGNO_ERROR);
     else if (result == "MISS_AUG")
-        assembler.error_no = MISS_AUG;
+        assembler.setErrorno(MISS_AUG);
     else if (result == "REDUND_AUG")
-        assembler.error_no = REDUND_AUG;
+        assembler.setErrorno(REDUND_AUG);
     else if (result == "UNKNOWN_ERROR")
-        assembler.error_no = UNKNOWN_ERROR;
+        assembler.setErrorno(UNKNOWN_ERROR);
     else if (result == "UNDEFINED_LABEL")
-        assembler.error_no = UNDEFINED_LABEL;
+        assembler.setErrorno(UNDEFINED_LABEL);
     else if (result == "UNDEFINED_CONST")
-        assembler.error_no = UNDEFINED_CONST;
+        assembler.setErrorno(UNDEFINED_CONST);
     else if (result == "UNDEFINED_VAR")
-        assembler.error_no = UNDEFINED_VAR;
+        assembler.setErrorno(UNDEFINED_VAR);
     else if (result == "RD_ZERO")
-        assembler.error_no = RD_ZERO;
+        assembler.setErrorno(RD_ZERO);
 }
 
 /*
  * 将错误信息输出到text_output
  */
-void Mainwindow::showInfo(int error_line, int error_instno) {
-    switch (assembler.error_no)
+void Mainwindow::showInfo() {
+    switch (assembler.getErrorno())
     {
     case NO_ERROR:
         error_info = "0 Error, Machine Code is generated successfully!\n";
@@ -83,7 +83,10 @@ void Mainwindow::showInfo(int error_line, int error_instno) {
         break;
     }
     ui->text_output->setText(error_info);
-    if (assembler.error_no != NO_ERROR && assembler.error_no > SEG_ERROR) {
+    if (assembler.getErrorno() != NO_ERROR && assembler.getErrorno() > SEG_ERROR) {
+        int error_line = assembler.getErrorLine();
+        int error_instno = assembler.getErrorInst();
+
         ui->asm_input->moveCursor(QTextCursor::Start);
         for (int i = 1; i < error_line; i++)
             ui->asm_input->moveCursor(QTextCursor::Down);
@@ -91,7 +94,7 @@ void Mainwindow::showInfo(int error_line, int error_instno) {
         error_info += QString::number(error_line, 10);
         ui->text_output->append(error_info);
         if (error_instno >= 0)
-            ui->text_output->append(debugger->inst_vec[error_instno]);
+            ui->text_output->append(debugger->getInst(error_instno));
     }
 }
 
@@ -101,7 +104,7 @@ void Mainwindow::showInfo(int error_line, int error_instno) {
 void Mainwindow::showOutput() {
     ui->output_table->clearContents();  // 清空脏数据
     // 无错误则输出对照信息
-    if (assembler.error_no == NO_ERROR) {
+    if (assembler.getErrorno() == NO_ERROR) {
         ui->output_table->setRowCount(valid);
         int pc = 0;
         for (int i = 0; i < valid; i++) {
@@ -112,7 +115,7 @@ void Mainwindow::showOutput() {
             // 输出机器码
             ui->output_table->setItem(i, 1, new QTableWidgetItem(output[i]));
             // 输出原指令
-            ui->output_table->setItem(i, 2, new QTableWidgetItem(debugger->inst_vec[i]));
+            ui->output_table->setItem(i, 2, new QTableWidgetItem(debugger->getInst(i)));
             // 地址+4
             pc += 4;
         }
@@ -125,32 +128,36 @@ void Mainwindow::showOutput() {
     ui->output_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 
     ui->data_table->clearContents();    // 清空脏数据
-    if (assembler.error_no == NO_ERROR) {
+    if (assembler.getErrorno() == NO_ERROR) {
         // 无误时输出数据变量
         int row_cnt = 0;
-        for (uint i = 0; i < assembler.varlist.size(); i++) {
-            int row = assembler.varlist[i].size / 4;
-            row = assembler.varlist[i].size % 4 ? row + 1 : row;
+        uint list_size = assembler.getVarlistSize();
+        for (uint i = 0; i < list_size; i++) {
+            int row = assembler.getVarSize(i) / 4;
+            row = assembler.getVarSize(i) % 4 ? row + 1 : row;
             row_cnt += row;
         }
         ui->data_table->setRowCount(row_cnt);
         row_cnt = 0;
 
-        for (uint i = 0; i < assembler.varlist.size(); i++) {
-            int row = assembler.varlist[i].size / 4;    // 所占行数
-            row = assembler.varlist[i].size % 4 ? row + 1 : row;
-            ui->data_table->setItem(i + row_cnt, 0, new QTableWidgetItem(assembler.varlist[i].name));
-            if (assembler.varlist[i].type == ASCIZ) {
+        for (uint i = 0; i < list_size; i++) {
+            int row = assembler.getVarSize(i) / 4;
+            row = assembler.getVarSize(i) % 4 ? row + 1 : row;
+            ui->data_table->setItem(i + row_cnt, 0, new QTableWidgetItem(assembler.getVarName(i)));
+            int type = assembler.getVarType(i);
+            int addr = assembler.getVarAddr(i);
+            QString contents = assembler.getVarContents(i);
+            if (type == ASCIZ) {
                 // 输出ASCIZ类型
                 for (int j = 0; j < row; j++) {
                     // 地址
                     ui->data_table->setItem(i + j + row_cnt, 1,
                                             new QTableWidgetItem(assembler.bi2Hex(assembler.int2Binary(
-                                                       assembler.varlist[i].addr + 4 * j, 32, UNSIGNED))));
+                                                       addr + 4 * j, 32, UNSIGNED))));
                     // 16进制形式
                     QString tmp = "";
                     for (int k = 0; k < 4; k++){
-                        QString tmp_ch = assembler.varlist[i].contents.mid(j * 4 + k, 1);
+                        QString tmp_ch = contents.mid(j * 4 + k, 1);
                         tmp += tmp_ch.toLatin1().toHex();
                         tmp += " ";
                     }
@@ -158,16 +165,16 @@ void Mainwindow::showOutput() {
                     // 内容
                     ui->data_table->setItem(i + j + row_cnt, 3,
                                             new QTableWidgetItem(
-                                                assembler.varlist[i].contents.mid(j * 4, 4)));
+                                                contents.mid(j * 4, 4)));
                 }
             }
-            else if (assembler.varlist[i].type == WORD) {
+            else if (type == WORD) {
                 // 输出WORD类型
-                QList<QString> tmp_lst = assembler.varlist[i].contents.split(" ");
+                QList<QString> tmp_lst = contents.split(" ");
                 for (int j = 0; j < row; j++) {
                     ui->data_table->setItem(i + j + row_cnt, 1,
                                             new QTableWidgetItem(assembler.bi2Hex(assembler.int2Binary(
-                                                       assembler.varlist[i].addr + 4 * j, 32, UNSIGNED))));
+                                                       addr + 4 * j, 32, UNSIGNED))));
                     // 转成小端模式
                     tmp_lst[j] = assembler.littleEndian(tmp_lst[j]);
                     QString tmp = tmp_lst[j].insert(2, QString(" "));
@@ -191,7 +198,7 @@ void Mainwindow::showOutput() {
                 for (int j = 0; j < row; j++) {
                     ui->data_table->setItem(i + j + row_cnt, 1,
                                             new QTableWidgetItem(assembler.bi2Hex(assembler.int2Binary(
-                                                       assembler.varlist[i].addr + 4 * j, 32, UNSIGNED))));
+                                                       addr + 4 * j, 32, UNSIGNED))));
                     // 16进制形式
                     QString tmp = "00 00 00 00";
                     ui->data_table->setItem(i + j + row_cnt, 2, new QTableWidgetItem(tmp));
@@ -235,7 +242,7 @@ void Mainwindow::initDebugInst() {
     ui->instText->clear();
     // 伪指令转换
     transPseudoInst();
-    if (assembler.error_no == NO_ERROR) {
+    if (assembler.getErrorno() == NO_ERROR) {
         QString tmp = "Address\t\tInstruction\n";
         int addr = 0;
         for (uint i = 0; i < debugger->stdinput.size(); i++) {

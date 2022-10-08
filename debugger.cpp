@@ -30,8 +30,8 @@ Debugger::Debugger(int size) {
     breakpoint = DEFAULT_BP;
     initPCaddr = 0;
     changedMemAddr = 0;
-    memoryText.clear();
-    memoryText.resize(memsize);
+    clearMemoText();
+    resizeMemoText(memsize);
 }
 
 uint Debugger::getChangedMemAddr() {
@@ -55,7 +55,7 @@ int Debugger::run(Assembler assembler) {
 
 // 单步调试
 int Debugger::step(Assembler assembler) {
-    ir = inst_vec[pc / 4];
+    ir = getInst(pc / 4);
     QList<QString> lst = stdinput[pc / 4].valueline.simplified().split(",");
     QString inst_name = stdinput[pc / 4].inst_name;
     int type = stdinput[pc / 4].type;
@@ -155,12 +155,14 @@ int Debugger::step(Assembler assembler) {
                 imm = Assembler::hex2Int(lst[2].simplified());
             else if (s[0] <= '9' && s[0] >= '0')
                 imm = lst[2].simplified().toInt();
-            else
-                for (uint i = 0; i < assembler.labellist.size(); i++)
-                    if (lst[2].simplified() == assembler.labellist[i].name) {
-                        imm = assembler.labellist[i].address - pc / 4;
+            else {
+                uint size = assembler.getLabelSize();
+                for (uint i = 0; i < size; i++)
+                    if (lst[2].simplified() == assembler.getLabelName(i)) {
+                        imm = assembler.getLabelAddr(i) - pc / 4;
                         break;
                     }
+            }
             _2RI16_handler(idx, rd, rj, imm, &branch_taken);
         }
         else {
@@ -515,34 +517,38 @@ void Debugger::setMemory(uint address, uint data) {
     hex_str = hex_str.insert(2, QString(" "));
     hex_str = hex_str.insert(5, QString(" "));
     hex_str = hex_str.insert(8, QString(" "));
-    memoryText[address].hex = hex_str;
+    setMemoTextHex(address, hex_str);
 
     QList<QString> lst = hex_str.split(" ");
-    memoryText[address].asciz = "";
+    setMemoTextAsciz(address, "");
+    QString asciz = "";
     for (int i = 0; i < lst.size(); i++) {
         if (isascii(lst[i].toInt(NULL, 16)) && isprint(lst[i].toInt(NULL, 16)))
-            memoryText[address].asciz += char(lst[i].toInt(NULL, 16));
+            asciz += char(lst[i].toInt(NULL, 16));
         else
-            memoryText[address].asciz += ".";
+            asciz += ".";
     }
+    setMemoTextAsciz(address, asciz);
     changedMemAddr = address * 4;
 }
 
 // 载入数据
 void Debugger::loadData(Assembler assembler) {
     uint row_acc = 0;
-    for (uint i = 0; i < assembler.varlist.size(); i++) {
-        int row = assembler.varlist[i].size / 4;   // 4字节一行，计算变量所占行数
+    uint size = assembler.getVarlistSize();
+    for (uint i = 0; i < size; i++) {
+        int row = assembler.getVarSize(i) / 4;   // 4字节一行，计算变量所占行数
+        QString contents = assembler.getVarContents(i);
         for (int j = 0; j < row; j++) {
             // 先处理memory，用于指令模拟
             QString tmp = "";
-            if (assembler.varlist[i].type == ASCIZ)
+            if (assembler.getVarType(i) == ASCIZ)
                 for (int k = 0; k < 4; k++) {
-                    QString ch = assembler.varlist[i].contents.mid(j*4 + k, 1);
+                    QString ch = contents.mid(j*4 + k, 1);
                     tmp += ch.toLatin1().toHex();
                 }
-            else if (assembler.varlist[i].type == WORD) {
-                QList<QString> lst = assembler.varlist[i].contents.split(" ");
+            else if (assembler.getVarType(i) == WORD) {
+                QList<QString> lst = contents.split(" ");
                 tmp = Assembler::littleEndian(lst[j]);
             }
             else
@@ -552,12 +558,12 @@ void Debugger::loadData(Assembler assembler) {
             // 地址
             struct meminfo tmp_info;
             tmp_info.addr = Assembler::bi2Hex(Assembler::int2Binary(
-                                assembler.varlist[i].addr + 4*(j + row_acc), 32, UNSIGNED));
+                                assembler.getVarAddr(i) + 4*(j + row_acc), 32, UNSIGNED));
             // 16进制形式
-            if (assembler.varlist[i].type == ASCIZ) {
+            if (assembler.getVarType(i) == ASCIZ) {
                 for (int k = 0; k < 4; k++) {
-                    if (j*4 + k < assembler.varlist[i].size) {
-                        QString ch = assembler.varlist[i].contents.mid(j*4 + k, 1);
+                    if (j*4 + k < assembler.getVarSize(i)) {
+                        QString ch = contents.mid(j*4 + k, 1);
                         tmp_info.hex += ch.toLatin1().toHex();
                     }
                     else
@@ -566,8 +572,8 @@ void Debugger::loadData(Assembler assembler) {
                         tmp_info.hex += " ";
                 }
             }
-            else if (assembler.varlist[i].type == WORD) {
-                QList<QString> lst = assembler.varlist[i].contents.split(" ");
+            else if (assembler.getVarType(i) == WORD) {
+                QList<QString> lst = contents.split(" ");
                 lst[j] = Assembler::littleEndian(lst[j]);
                 tmp_info.hex = lst[j].insert(2, QString(" "));
                 tmp_info.hex = tmp_info.hex.insert(5, QString(" "));
@@ -576,9 +582,9 @@ void Debugger::loadData(Assembler assembler) {
             else
                 tmp_info.hex = "00 00 00 00";
             // 内容
-            if (assembler.varlist[i].type == ASCIZ)
-                tmp_info.asciz = assembler.varlist[i].contents.mid(j*4, 4);
-            else if (assembler.varlist[i].type == WORD) {
+            if (assembler.getVarType(i) == ASCIZ)
+                tmp_info.asciz = contents.mid(j*4, 4);
+            else if (assembler.getVarType(i) == WORD) {
                 QList<QString> lst = tmp_info.hex.split(" ");
                 for (int k = 0; k < lst.size(); k++) {
                     if (isascii(lst[k].toInt(NULL, 16)) && isprint(lst[k].toInt(NULL, 16)))
@@ -590,7 +596,7 @@ void Debugger::loadData(Assembler assembler) {
             else
                 tmp_info.asciz = "....";
             // 一条完整的结果推入vector中
-            memoryText.push_back(tmp_info);
+            pushbackMemoText(tmp_info);
         }
         // 更新累计行数
         row_acc += row;
@@ -606,7 +612,7 @@ void Debugger::loadData(Assembler assembler) {
             tmp_info.addr = Assembler::bi2Hex(Assembler::int2Binary(4*(i + row_acc), 32, UNSIGNED));
             tmp_info.hex = "00 00 00 00";
             tmp_info.asciz = "....";
-            memoryText.push_back(tmp_info);
+            pushbackMemoText(tmp_info);
         }
     }
     changedMemAddr = 0;
@@ -618,5 +624,6 @@ void Debugger::reset(Assembler assembler) {
         regfile[i] = 0;
     ir = "";
     pc = initPCaddr;
+    clearMemoText();
     loadData(assembler);
 }

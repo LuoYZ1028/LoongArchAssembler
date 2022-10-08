@@ -17,7 +17,7 @@ QString Mainwindow::GetCorrectUnicode(const QByteArray &buf) {
  */
 void Mainwindow::fileInput() {
     ui->asm_input->clear();
-    filename = QFileDialog::getOpenFileName(this, tr("选择文件"), TEST_DIR, tr("*.txt;;*.asm"));
+    filename = QFileDialog::getOpenFileName(this, tr("选择文件"), TEST_DIR, tr("*.asm;;*.txt"));
     QFile file(filename);
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QByteArray buf = file.readAll();
@@ -186,17 +186,19 @@ void Mainwindow::fileOutput_txt() {
 void Mainwindow::dataOutput_txt() {
     QString str = "";
     int cnt = 0;
-    for(uint i = 0; i < assembler.varlist.size(); i++) {
-        int type = assembler.varlist[i].type;
-        QList<QString>tmp_list = assembler.varlist[i].contents.split(" ");
+    uint list_size = assembler.getVarlistSize();
+    for(uint i = 0; i < list_size; i++) {
+        int type = assembler.getVarType(i);
+        QString contents = assembler.getVarContents(i);
+        QList<QString>tmp_list = contents.split(" ");
         if (type == ASCIZ) {
-            int size = assembler.varlist[i].size;
+            int size = assembler.getVarSize(i);
             int row = size % 4 ? size / 4 + 1 : size / 4;
             for (int j = 0; j < row; j++) {
                 for (int k = 0; k < 4; k++){
-                    if (j * 4 + k < assembler.varlist[i].size) {
+                    if (j * 4 + k < size) {
                         // 字符转ascii码
-                        QString tmp_ch = assembler.varlist[i].contents.mid(4*j + k, 1);
+                        QString tmp_ch = contents.mid(4*j + k, 1);
                         str += tmp_ch.toLatin1().toHex();
                     }
                     else
@@ -249,17 +251,19 @@ void Mainwindow::dataOutput_txt() {
 void Mainwindow::dataOutput_coe() {
     QString str = "memory_initialization_radix=16;\nmemory_initialization_vector=\n";
     int cnt = 0;
-    for(uint i = 0; i < assembler.varlist.size(); i++) {
-        int type = assembler.varlist[i].type;
-        QList<QString>tmp_list = assembler.varlist[i].contents.split(" ");
+    uint list_size = assembler.getVarlistSize();
+    for(uint i = 0; i < list_size; i++) {
+        int type = assembler.getVarType(i);
+        QString contents = assembler.getVarContents(i);
+        QList<QString>tmp_list = contents.split(" ");
         if (type == ASCIZ) {
-            int size = assembler.varlist[i].size;
+            int size = assembler.getVarSize(i);
             int row = size % 4 ? size / 4 + 1 : size / 4;
             for (int j = 0; j < row; j++) {
                 for (int k = 0; k < 4; k++){
-                    if (j * 4 + k < assembler.varlist[i].size) {
+                    if (j * 4 + k < size) {
                         // 字符转ascii码
-                        QString tmp_ch = assembler.varlist[i].contents.mid(4*j + k, 1);
+                        QString tmp_ch = contents.mid(4*j + k, 1);
                         str += tmp_ch.toLatin1().toHex();
                     }
                     else

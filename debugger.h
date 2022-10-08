@@ -32,19 +32,40 @@ private:
     int initPCaddr;     // PC初始值
     uint breakpoint;    // 断点表
     uint changedMemAddr;// 被修改的内存地址
+    vector<meminfo>memoryText;  // 内存信息向量
+     std::vector<QString>inst_vec;  //指令存储区
     ~Debugger();
 
 public:
-    vector<meminfo>memoryText;
     Debugger();
     Debugger(int size);
 
     std::vector<Assembler::instruction>stdinput;    //处理后的标准化输入
-    std::vector<QString>inst_vec;                   //指令存储区
+    /*
+     * 私有成员接口函数
+     */
+    void clearMemoText()                            { memoryText.clear(); }
+    void resizeMemoText(int size)                   { memoryText.resize(size); }
+    int getMemoTextSize()                           { return memoryText.size(); }
+    QString getMemoTextHex(int idx)                 { return memoryText[idx].hex; }
+    QString getMemoTextAddr(int idx)                { return memoryText[idx].addr; }
+    QString getMemoTextAsciz(int idx)               { return memoryText[idx].asciz; }
+    void setMemoTextHex(int idx, QString hex)       { memoryText[idx].hex = hex; }
+    void setMemoTextAddr(int idx, QString addr)     { memoryText[idx].addr = addr; }
+    void setMemoTextAsciz(int idx, QString asciz)   { memoryText[idx].asciz = asciz; }
+    void pushbackMemoText(struct meminfo mt)        { memoryText.push_back(mt); }
 
+    void clearInstVec()                             { inst_vec.clear(); }
+    uint getInstVecSize()                            { return inst_vec.size(); }
+    QString getInst(int idx)                        { return inst_vec[idx]; }
+    void pushbackInstVec(QString inst)              { inst_vec.push_back(inst); }
+
+    /*
+     * 三大基本功能，执行、单步、重置
+     */
     int run(Assembler assembler);      // 返回执行了多少条指令
     int step(Assembler assembler);     // 成功返回1，否则返回0
-    void reset(Assembler assembler);   // 重置操作
+    void reset(Assembler assembler);
 
     /*
      * PC处理函数

@@ -51,17 +51,17 @@ private:
      */
     void workspaceClear();                              // 清空堆栈
     void readInput();                                   // 读取输入
-    void lineProcess(int *error_line, int *error_instno);// 按行处理
-    void instProcess(QString input, int lineCnt);        // 指令处理
-    void dataProcess(QString input);                     // 数据处理
-    void errorDetect(QString result);                    // 错误检测
-    int transCode(int *error_instno);                    // ASM转成机器码
+    void lineProcess();                                 // 按行处理
+    void instProcess(QString input, int lineCnt);       // 指令处理
+    void dataProcess(QString input);                    // 数据处理
+    void errorDetect(QString result);                   // 错误检测
+    void transCode();                                   // ASM转成机器码
 
     /*
      * 处理结果信息显示
      */
-    void showInfo(int error_line, int error_instno);  // 输出信息
-    void showOutput();                                 // 显示输出
+    void showInfo();
+    void showOutput();
 
     /*
      * 文件读取和输出函数

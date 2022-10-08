@@ -21,7 +21,7 @@ void Assembler::changeTSA(QString input) {
     if (tmp % 4 == 0)
         textStartAddr = tmp;
     else
-        Assembler::error_no = ORIGIN_VERROR;
+        Assembler::setErrorno(ORIGIN_VERROR);
 
 }
 
@@ -95,16 +95,16 @@ QString Assembler::asm2Machine(instruction input) {
     QString result;
     switch(input.type)
     {
-    case _3R:       valid++;    result = _3RTypeASM(input);     break;
-    case _2R:       valid++;    result = _2RTypeASM(input);     break;
-    case _2R_I8:    valid++;    result = _2RI8TypeASM(input);   break;
-    case _2R_I12:   valid++;    result = _2RI12TypeASM(input);  break;
-    case _2R_I14:   valid++;    result = _2RI14TypeASM(input);  break;
-    case _2R_I16:   valid++;    result = _2RI16TypeASM(input, valid); break;
-    case _1R_I20:   valid++;    result = _1RI20TypeASM(input);  break;
-    case _BAR:      valid++;    result = _BARTypeASM(input);    break;
-    case PSEUDO:    valid++;    result = _pseudoTypeASM(input); break;
-    default:                    result =  "UNKNOWN_ERROR";      break;
+    case _3R:       Assembler::incValid();      result = _3RTypeASM(input);     break;
+    case _2R:       Assembler::incValid();      result = _2RTypeASM(input);     break;
+    case _2R_I8:    Assembler::incValid();      result = _2RI8TypeASM(input);   break;
+    case _2R_I12:   Assembler::incValid();      result = _2RI12TypeASM(input);  break;
+    case _2R_I14:   Assembler::incValid();      result = _2RI14TypeASM(input);  break;
+    case _2R_I16:   Assembler::incValid();      result = _2RI16TypeASM(input, Assembler::getValid()); break;
+    case _1R_I20:   Assembler::incValid();      result = _1RI20TypeASM(input);  break;
+    case _BAR:      Assembler::incValid();      result = _BARTypeASM(input);    break;
+    case PSEUDO:    Assembler::incValid();      result = _pseudoTypeASM(input); break;
+    default:                                    result =  "UNKNOWN_ERROR";      break;
     }
     return result;
 }
@@ -282,12 +282,14 @@ QString Assembler::_2RI8TypeASM(instruction input) {
         num = value[2].toInt();
     else {
         bool match_flag = false;
-        for (uint i = 0; i < equlist.size(); i++) {
-            if (value[2].simplified() == equlist[i].name) {
-                if (equlist[i].value.mid(0, 2) == "0x")
-                    num = hex2Int(equlist[i].value);
+        uint list_size = getEqulistSize();
+        for (uint i = 0; i < list_size; i++) {
+            if (value[2].simplified() == getEquName(i)) {
+                QString value = getEquValue(i);
+                if (value.mid(0, 2) == "0x")
+                    num = hex2Int(value);
                 else
-                    num = equlist[i].value.toInt();
+                    num = value.toInt();
                 match_flag = true;
                 break;
             }
@@ -374,12 +376,14 @@ QString Assembler::_2RI12TypeASM(instruction input) {
         num = value[2].toInt();
     else {
         bool match_flag = false;
-        for (uint i = 0; i < equlist.size(); i++) {
-            if (value[2].simplified() == equlist[i].name) {
-                if (equlist[i].value.mid(0, 2) == "0x")
-                    num = hex2Int(equlist[i].value);
+        uint list_size = getEqulistSize();
+        for (uint i = 0; i < list_size; i++) {
+            if (value[2].simplified() == getEquName(i)) {
+                QString value = getEquValue(i);
+                if (value.mid(0, 2) == "0x")
+                    num = hex2Int(value);
                 else
-                    num = equlist[i].value.toInt();
+                    num = value.toInt();
                 match_flag = true;
                 break;
             }
@@ -435,12 +439,14 @@ QString Assembler::_2RI14TypeASM(instruction input) {
         num = value[2].toInt();
     else {
         bool match_flag = false;
-        for (uint i = 0; i < equlist.size(); i++) {
-            if (value[2].simplified() == equlist[i].name) {
-                if (equlist[i].value.mid(0, 2) == "0x")
-                    num = hex2Int(equlist[i].value);
+        uint list_size = getEqulistSize();
+        for (uint i = 0; i < list_size; i++) {
+            if (value[2].simplified() == getEquName(i)) {
+                QString value = getEquValue(i);
+                if (value.mid(0, 2) == "0x")
+                    num = hex2Int(value);
                 else
-                    num = equlist[i].value.toInt();
+                    num = value.toInt();
                 match_flag = true;
                 break;
             }
@@ -515,10 +521,11 @@ QString Assembler::_2RI16TypeASM(instruction input, int position) {
         else {
             bool match_flag = false;
             // 是否是已知标号
-            for (uint i = 0; i < labellist.size(); i++) {
-                if (value[2].simplified() == labellist[i].name) {
+            uint size = getLabelSize();
+            for (uint i = 0; i < size; i++) {
+                if (value[2].simplified() == getLabelName(i)) {
                     // 虽然实际距离是4的整数倍，但此工作应留给硬件完成
-                    int distance = labellist[i].address - position;
+                    int distance = getLabelAddr(i) - position;
                     imm16 = int2Binary(distance, 16, SIGNED);
                     match_flag = true;
                     break;
@@ -526,12 +533,14 @@ QString Assembler::_2RI16TypeASM(instruction input, int position) {
             }
             // 是否是已知宏常量
             if (!match_flag) {
-                for (uint i = 0; i < equlist.size(); i++) {
-                    if (value[2].simplified() == equlist[i].name) {
-                        if (equlist[i].value.mid(0, 2) == "0x")
-                            imm16 = int2Binary(hex2Int(equlist[i].value), 16, SIGNED);
+                uint list_size = getEqulistSize();
+                for (uint i = 0; i < list_size; i++) {
+                    if (value[2].simplified() == getEquName(i)) {
+                        QString value = getEquValue(i);
+                        if (value.mid(0, 2) == "0x")
+                            imm16 = int2Binary(hex2Int(value), 16, SIGNED);
                         else
-                            imm16 = int2Binary(equlist[i].value.toInt(), 16, SIGNED);
+                            imm16 = int2Binary(value.toInt(), 16, SIGNED);
                         match_flag = true;
                         break;
                     }
@@ -570,12 +579,14 @@ QString Assembler::_2RI16TypeASM(instruction input, int position) {
         }
         else {
             bool match_flag = false;
-            for (uint i = 0; i < equlist.size(); i++) {
-                if (value[0].simplified() == equlist[i].name) {
-                    if (equlist[i].value.mid(0, 2) == "0x")
-                        num_0 = hex2Int(equlist[i].value);
+            uint list_size = getEqulistSize();
+            for (uint i = 0; i < list_size; i++) {
+                if (value[0].simplified() == getEquName(i)) {
+                    QString value = getEquValue(i);
+                    if (value.mid(0, 2) == "0x")
+                        num_0 = hex2Int(value);
                     else
-                        num_0 = equlist[i].value.toInt();
+                        num_0 = value.toInt();
                     match_flag = true;
                     break;
                 }
@@ -626,12 +637,14 @@ QString Assembler::_1RI20TypeASM(instruction input) {
         num = value[1].toInt();
     else {
         bool match_flag = false;
-        for (uint i = 0; i < equlist.size(); i++) {
-            if (value[1].simplified() == equlist[i].name) {
-                if (equlist[i].value.mid(0, 2) == "0x")
-                    num = hex2Int(equlist[i].value);
+        uint list_size = getEqulistSize();
+        for (uint i = 0; i < list_size; i++) {
+            if (value[1].simplified() == getEquName(i)) {
+                QString value = getEquValue(i);
+                if (value.mid(0, 2) == "0x")
+                    num = hex2Int(value);
                 else
-                    num = equlist[i].value.toInt();
+                    num = value.toInt();
                 match_flag = true;
                 break;
             }
@@ -685,12 +698,14 @@ QString Assembler::_BARTypeASM(instruction input) {
         num = value[0].toInt();
     else {
         bool match_flag = false;
-        for (uint i = 0; i < equlist.size(); i++) {
-            if (value[0].simplified() == equlist[i].name) {
-                if (equlist[i].value.mid(0, 2) == "0x")
-                    num = hex2Int(equlist[i].value);
+        uint list_size = getEqulistSize();
+        for (uint i = 0; i < list_size; i++) {
+            if (value[0].simplified() == getEquName(i)) {
+                QString value = getEquValue(i);
+                if (value.mid(0, 2) == "0x")
+                    num = hex2Int(value);
                 else
-                    num = equlist[i].value.toInt();
+                    num = value.toInt();
                 match_flag = true;
                 break;
             }
@@ -737,12 +752,14 @@ QString Assembler::_pseudoTypeASM(instruction input) {
             num = value[1].toInt();
         else {
             bool match_flag = false;
-            for (uint i = 0; i < equlist.size(); i++) {
-                if (value[1].simplified() == equlist[i].name) {
-                    if (equlist[i].value.mid(0, 2) == "0x")
-                        num = hex2Int(equlist[i].value);
+            uint list_size = getEqulistSize();
+            for (uint i = 0; i < list_size; i++) {
+                if (value[1].simplified() == getEquName(i)) {
+                    QString value = getEquValue(i);
+                    if (value.mid(0, 2) == "0x")
+                        num = hex2Int(value);
                     else
-                        num = equlist[i].value.toInt();
+                        num = value.toInt();
                     match_flag = true;
                     break;
                 }
@@ -753,11 +770,11 @@ QString Assembler::_pseudoTypeASM(instruction input) {
         imm = int2Binary(num, 12, SIGNED);
     }
     else {
-        uint size = varlist.size();
+        uint size = getVarlistSize();
         bool match_flag = false;
         for (uint i = 0; i < size; i++) {
-            if (value[1].simplified() == varlist[i].name) {
-                imm = int2Binary(varlist[i].addr, 12, SIGNED);
+            if (value[1].simplified() == getVarName(i)) {
+                imm = int2Binary(getVarAddr(i), 12, SIGNED);
                 match_flag = true;
                 break;
             }
@@ -856,4 +873,19 @@ QString Assembler::littleEndian(QString str) {
     QString byte3 = str.mid(4, 2);
     QString byte4 = str.mid(6, 2);
     return byte4 + byte3 + byte2 + byte1;
+}
+
+// 标号表新增元素
+void Assembler::pushbackLabel(struct label newlabel) {
+    Assembler::labellist.push_back(newlabel);
+}
+
+// 数据变量表新增元素
+void Assembler::pushbackVar(struct var newvar) {
+    Assembler::varlist.push_back(newvar);
+}
+
+// 宏定义变量表新增元素
+void Assembler::pushbackEqu(struct equ newequ) {
+    Assembler::equlist.push_back(newequ);
 }

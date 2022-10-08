@@ -7,16 +7,16 @@
 void Mainwindow::workspaceClear() {
     input.clear();
     debugger->stdinput.clear();
-    assembler.labellist.clear();
-    assembler.varlist.clear();
-    assembler.equlist.clear();
-    assembler.valid = 0;
+    assembler.clearLabelList();
+    assembler.clearVarlist();
+    assembler.clearEqulist();
+    assembler.clearValid();
     data_addr = 0;
-    assembler.error_no = NO_ERROR;
+    assembler.setErrorno(NO_ERROR);
     valid = 0;
     output.clear();
-    debugger->inst_vec.clear();
-    debugger->memoryText.clear();
+    debugger->clearInstVec();
+    debugger->clearMemoText();
 }
 
 /*
@@ -47,7 +47,7 @@ void Mainwindow::instProcess(QString input, int lineCnt) {
             newLabel.address = 0;
         else
             newLabel.address = valid + 1;
-        assembler.labellist.push_back(newLabel);
+        assembler.pushbackLabel(newLabel);
     }
     else {
         int type = assembler.matchType(lst[0].toLower(), INST_MODE);
@@ -56,19 +56,19 @@ void Mainwindow::instProcess(QString input, int lineCnt) {
         QString str = input.simplified();
         tmp = str.split("#");
         str = tmp[0];
-        debugger->inst_vec.push_back(str);
+        debugger->pushbackInstVec(str);
 
         // 指令语句标准化处理
         struct Assembler::instruction ins;
         ins.type = type;
         ins.inst_name = lst[0].toLower(); // 统一做小写转换
         QString vline;
-        uint len = assembler.equlist.size();
+        uint len = assembler.getEqulistSize();
         for (int i = 1; i < lst.size(); i++) {
             if (lst[i].mid(0, 1) != "#") {
                 for (uint j = 0; j < len; j++) {
-                    if (lst[i].simplified() == assembler.equlist[j].name) {
-                        lst[i] = assembler.equlist[j].value;
+                    if (lst[i].simplified() == assembler.getEquName(j)) {
+                        lst[i] = assembler.getEquValue(j);
                         break;
                     }
                 }
@@ -83,7 +83,7 @@ void Mainwindow::instProcess(QString input, int lineCnt) {
         debugger->stdinput.push_back(ins);
         // 若该指令有问题，则推入后立刻退出
         if (type == TYPE_ERROR) {
-            assembler.error_no = TYPE_ERROR;
+            assembler.setErrorno(TYPE_ERROR);
             return ;
         }
         else
@@ -160,29 +160,29 @@ void Mainwindow::dataProcess(QString input) {
             else if (has_word && data_addr % WORD_BYTE)
                 data_addr = (data_addr / WORD_BYTE + 1) * WORD_BYTE;
             newVar.addr = data_addr;
-            assembler.varlist.push_back(newVar);
+            assembler.pushbackVar(newVar);
             // 计算新地址
             data_addr += newVar.size;
         }
         else
-            assembler.error_no = DFORMAT_ERROR;
+            assembler.setErrorno(DFORMAT_ERROR);
     }
     // 定义的是宏常量
     else if (lst[1].simplified() == QString("EQU")) {
         struct Assembler::equ newEQU;
         newEQU.name = lst[0].simplified();
         newEQU.value = lst[2].simplified();
-        assembler.equlist.push_back(newEQU);
+        assembler.pushbackEqu(newEQU);
     }
     // 否则，类型错误
     else
-        assembler.error_no = DFORMAT_ERROR;
+        assembler.setErrorno(DFORMAT_ERROR);
 }
 
 /*
  * 按行读取缓冲区内容，并进行标准化
  */
-void Mainwindow::lineProcess(int *error_line, int *error_instno) {
+void Mainwindow::lineProcess() {
     valid = 0;
     bool text_flag = false;
     bool data_flag = false;
@@ -215,7 +215,7 @@ void Mainwindow::lineProcess(int *error_line, int *error_instno) {
     }
     else {
         // 第一行必然是.text或.data，否则格式有误
-        assembler.error_no = SEG_ERROR;
+        assembler.setErrorno(SEG_ERROR);
         return ;
     }
 
@@ -232,10 +232,10 @@ void Mainwindow::lineProcess(int *error_line, int *error_instno) {
             lineCnt++;
             continue;
         } else if (text_flag && input[i].mid(0, 5) == ".text") {
-            assembler.error_no = REDUND_TEXTSEG;
+            assembler.setErrorno(REDUND_TEXTSEG);
             return ;
         } else if (data_flag && input[i].mid(0, 5) == ".data") {
-            assembler.error_no = REDUND_DATASEG;
+            assembler.setErrorno(REDUND_DATASEG);
             return ;
         }
         // .origin标志检测，若在.text前出现则有错
@@ -245,7 +245,7 @@ void Mainwindow::lineProcess(int *error_line, int *error_instno) {
             continue;
         }
         else if (!text_flag && input[i].mid(0, 7) == ".origin") {
-            assembler.error_no = ORIGIN_ERROR;
+            assembler.setErrorno(ORIGIN_ERROR);
             return ;
         }
 
@@ -275,15 +275,15 @@ void Mainwindow::lineProcess(int *error_line, int *error_instno) {
                  || (text_flag && data_flag && textStartlineNo < dataStartlineNo))
             dataProcess(input[i]);
         // 指令行出错
-        if (assembler.error_no != NO_ERROR && assembler.error_no != DFORMAT_ERROR) {
-            *error_line = debugger->stdinput.back().lineno;
-            *error_instno = debugger->stdinput.size() - 1;
+        if (assembler.getErrorno() != NO_ERROR && assembler.getErrorno() != DFORMAT_ERROR) {
+            assembler.setErrorLine(debugger->stdinput.back().lineno);
+            assembler.setErrorInst(debugger->stdinput.size() - 1);
             return ;
         }
         // 数据行出错
-        else if (assembler.error_no == DFORMAT_ERROR) {
-            *error_line = lineCnt + 1;
-            *error_instno = -1;
+        else if (assembler.getErrorno() == DFORMAT_ERROR) {
+            assembler.setErrorLine(lineCnt + 1);
+            assembler.setErrorInst(-1);
             return ;
         }
         // 否则总行数+1
@@ -292,7 +292,7 @@ void Mainwindow::lineProcess(int *error_line, int *error_instno) {
     }
     // 程序里必须有.text，否则有错
     if (text_flag == false) {
-        assembler.error_no = MISS_TEXTSEG;
+        assembler.setErrorno(MISS_TEXTSEG);
         return ;
     }
 }
@@ -300,20 +300,21 @@ void Mainwindow::lineProcess(int *error_line, int *error_instno) {
 /*
  * 对标准化后的内容进行翻译
  */
-int Mainwindow::transCode(int *error_instno) {
+void Mainwindow::transCode() {
     for (int i = 0; i < valid; i++) {
         QString result = assembler.asm2Machine(debugger->stdinput[i]);
         errorDetect(result);
         // 该语句无错误才推入输出缓冲区
-        if (assembler.error_no == NO_ERROR) {
+        if (assembler.getErrorno() == NO_ERROR) {
             output.push_back(result);
             output[i] = assembler.bi2Hex(output[i]);
         }
         // 翻译过程发现错误就提前退出，并取出该指令
         else {
-            *error_instno = i;
-            return debugger->stdinput[i].lineno;
+            assembler.setErrorInst(i);
+            assembler.setErrorLine(debugger->stdinput[i].lineno);
+            return ;
         }
     }
-    return -1;
+    return ;
 }
