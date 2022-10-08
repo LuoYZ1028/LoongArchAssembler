@@ -33,7 +33,7 @@ private:
     uint breakpoint;    // 断点表
     uint changedMemAddr;// 被修改的内存地址
     vector<meminfo>memoryText;  // 内存信息向量
-     std::vector<QString>inst_vec;  //指令存储区
+     std::vector<QString>inst_vec;  //指令存储区，主要用于ir的内容显示
     ~Debugger();
 
 public:
@@ -41,6 +41,7 @@ public:
     Debugger(int size);
 
     std::vector<Assembler::instruction>stdinput;    //处理后的标准化输入
+
     /*
      * 私有成员接口函数
      */

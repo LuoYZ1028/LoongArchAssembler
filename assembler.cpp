@@ -34,39 +34,39 @@ int Assembler::matchType(QString name, int mode){
                 switch (i)
                 {
                 case 0:
-                    if (_3RType[j] == name)
+                    if (name == _3RType[j])
                         return _3R;
                     break;
                 case 1:
-                    if (_2RType[j] == name)
+                    if (name == _2RType[j])
                         return _2R;
                     break;
                 case 2:
-                    if (_2R_I8Type[j] == name)
+                    if (name == _2R_I8Type[j])
                         return _2R_I8;
                     break;
                 case 3:
-                    if (_2R_I12Type[j] == name)
+                    if (name == _2R_I12Type[j])
                         return _2R_I12;
                     break;
                 case 4:
-                    if (_2R_I14Type[j] == name)
+                    if (name == _2R_I14Type[j])
                         return _2R_I14;
                     break;
                 case 5:
-                    if (_2R_I16Type[j] == name)
+                    if (name == _2R_I16Type[j])
                         return _2R_I16;
                     break;
                 case 6:
-                    if (_1R_I20Type[j] == name)
+                    if (name == _1R_I20Type[j])
                         return _1R_I20;
                     break;
                 case 7:
-                    if (_2RType[j] == name)
+                    if (name == _2RType[j])
                         return _BAR;
                     break;
                 case 8:
-                    if (_pseudoType[j] == name)
+                    if (name == _pseudoType[j])
                         return PSEUDO;
                     break;
                 default:
@@ -74,6 +74,10 @@ int Assembler::matchType(QString name, int mode){
                 }
             }
         }
+        for (uint i = 0; i < macrolist.size(); i++)
+            if (name == macrolist[i].name)
+                return MACRO;
+
         return TYPE_ERROR;
     }
     else if (mode == DATA_MODE) {
@@ -888,4 +892,9 @@ void Assembler::pushbackVar(struct var newvar) {
 // 宏定义变量表新增元素
 void Assembler::pushbackEqu(struct equ newequ) {
     Assembler::equlist.push_back(newequ);
+}
+
+// 宏表新增元素
+void Assembler::pushbackMacro(struct macro newmacro) {
+    Assembler::macrolist.push_back(newmacro);
 }

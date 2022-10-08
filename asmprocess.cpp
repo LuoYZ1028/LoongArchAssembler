@@ -5,16 +5,31 @@
  * 清理工作区
  */
 void Mainwindow::workspaceClear() {
+    // IO缓冲区清理
     input.clear();
-    debugger->stdinput.clear();
+    output.clear();
+
+    // 临时变量重置
+    valid = 0;
+    lineCnt = 0;
+    data_addr = 0;
+    text_flag = false;
+    data_flag = false;
+    has_word = false;
+    has_space = false;
+    textStartlineNo = MAX_LINE_NUM;
+    dataStartlineNo = MAX_LINE_NUM;
+
+    // 汇编器清理
     assembler.clearLabelList();
     assembler.clearVarlist();
     assembler.clearEqulist();
     assembler.clearValid();
-    data_addr = 0;
+    assembler.clearMacrolist();
     assembler.setErrorno(NO_ERROR);
-    valid = 0;
-    output.clear();
+
+    // debugger清理
+    debugger->stdinput.clear();
     debugger->clearInstVec();
     debugger->clearMemoText();
 }
@@ -33,14 +48,18 @@ void Mainwindow::readInput() {
 }
 
 /*
- * 处理指令行
+ * 处理指令行，遇到注释行或空行直接跳过
+ * 判断：遇到label就记录其名称和位置，然后推入label向量表
+ * 否则，将遇到的指令指令语句去掉注释，推入指令向量中
+ *  特殊：若遇到宏展开，需要特殊处理
+ *  若该指令有问题，则推入后立刻退出
  */
 void Mainwindow::instProcess(QString input, int lineCnt) {
     if (input.simplified().isEmpty() || input.simplified().mid(0, 1) == "#")
-        return ;    //遇到注释行或空行则跳过
+        return ;
+
     QList<QString>lst = input.simplified().split(" ");
     if (input.mid(input.length() - 1, 1) == ":") {
-        //遇到label就记录其名称和位置
         struct Assembler::label newLabel;
         newLabel.name = input.mid(0, input.length() - 1);
         if (valid == 0)
@@ -51,37 +70,88 @@ void Mainwindow::instProcess(QString input, int lineCnt) {
     }
     else {
         int type = assembler.matchType(lst[0].toLower(), INST_MODE);
-        // 将该条指令语句去掉注释，推入指令向量中
         QList<QString>tmp;
         QString str = input.simplified();
         tmp = str.split("#");
         str = tmp[0];
-        debugger->pushbackInstVec(str);
+        if (type != MACRO) {
+            debugger->pushbackInstVec(str);
 
-        // 指令语句标准化处理
-        struct Assembler::instruction ins;
-        ins.type = type;
-        ins.inst_name = lst[0].toLower(); // 统一做小写转换
-        QString vline;
-        uint len = assembler.getEqulistSize();
-        for (int i = 1; i < lst.size(); i++) {
-            if (lst[i].mid(0, 1) != "#") {
-                for (uint j = 0; j < len; j++) {
-                    if (lst[i].simplified() == assembler.getEquName(j)) {
-                        lst[i] = assembler.getEquValue(j);
-                        break;
+            // 指令语句标准化处理
+            struct Assembler::instruction ins;
+            ins.type = type;
+            ins.inst_name = lst[0].toLower(); // 统一做小写转换
+            QString vline;
+            uint len = assembler.getEqulistSize();
+            for (int i = 1; i < lst.size(); i++) {
+                if (lst[i].mid(0, 1) != "#") {
+                    for (uint j = 0; j < len; j++) {
+                        if (lst[i].simplified() == assembler.getEquName(j)) {
+                            lst[i] = assembler.getEquValue(j);
+                            break;
+                        }
                     }
+                    vline += " ";
+                    vline += lst[i];
                 }
-                vline += " ";
-                vline += lst[i];
+                else
+                    break;//读到注释则跳过本行
             }
-            else
-                break;//读到注释则跳过本行
+            ins.valueline = vline;
+            ins.lineno = lineCnt + 1;
+            debugger->stdinput.push_back(ins);
         }
-        ins.valueline = vline;
-        ins.lineno = lineCnt + 1;
-        debugger->stdinput.push_back(ins);
-        // 若该指令有问题，则推入后立刻退出
+        else {
+            // 宏展开处理
+            int idx = 0;
+            int size = assembler.getMacrolistSize();
+            for (int i = 0; i < size; i++) {
+                if (lst[0].toLower() == assembler.getMacroName(i)) {
+                    idx = i;
+                    break;
+                }
+            }
+            QList<QString> var_list = str.split(" ");
+            str = var_list[1];
+            var_list = str.split(",");
+            if (var_list.size() < assembler.getMacroVarNum(idx)) {
+                assembler.setErrorno(MISS_AUG);
+                return ;
+            }
+            else if (var_list.size() > assembler.getMacroVarNum(idx)) {
+                assembler.setErrorno(REDUND_AUG);
+                return ;
+            }
+
+            int line_num = assembler.getMacroInstNum(idx);
+            for (int i = 0; i < line_num; i++) {
+                QString macro_inst = assembler.getMacroInst(idx, i).simplified();
+                tmp = macro_inst.split("#");
+                macro_inst = tmp[0];
+                for (int j = 0; j < var_list.size(); j++)
+                    macro_inst.replace(assembler.getMacroVar(idx, j), var_list[j]);
+                QList<QString>tmp_lst = macro_inst.simplified().split(" ");
+                int t = assembler.matchType(tmp_lst[0].toLower(), INST_MODE);
+                debugger->pushbackInstVec(macro_inst);
+
+                struct Assembler::instruction ins;
+                ins.type = t;
+                ins.inst_name = tmp_lst[0].toLower(); // 统一做小写转换
+                QString vline;
+                for (int j = 1; j < tmp_lst.size(); j++) {
+                    if (tmp_lst[j].mid(0, 1) != "#") {
+                        vline += " ";
+                        vline += tmp_lst[j];
+                    }
+                    else
+                        break;//读到注释则跳过本行
+                }
+                ins.valueline = vline;
+                ins.lineno = lineCnt + 1;
+                debugger->stdinput.push_back(ins);
+            }
+        }
+
         if (type == TYPE_ERROR) {
             assembler.setErrorno(TYPE_ERROR);
             return ;
@@ -93,15 +163,16 @@ void Mainwindow::instProcess(QString input, int lineCnt) {
 
 /*
  * 处理数据行
+ * 遇到注释行或空行直接跳过
+ * 否则，进行判断是数据变量还是EQU常量
+ * 都不是则类型错误，返回
  */
 void Mainwindow::dataProcess(QString input) {
-    static bool has_word = false;
-    static bool has_space = false;
     if (input.simplified().isEmpty() || input.simplified().mid(0, 2) == "#")
-        return ;    //遇到注释行或空行则跳过
+        return ;
 
     QList<QString>lst = input.simplified().split(" ");
-    // 定义的是数据变量
+
     if (lst[0].mid(lst[0].length() - 1, 1) == ":") {
         struct Assembler::var newVar;
         newVar.type = assembler.matchType(lst[1].toLower(), DATA_MODE); // 判断变量类型
@@ -167,60 +238,101 @@ void Mainwindow::dataProcess(QString input) {
         else
             assembler.setErrorno(DFORMAT_ERROR);
     }
-    // 定义的是宏常量
     else if (lst[1].simplified() == QString("EQU")) {
         struct Assembler::equ newEQU;
         newEQU.name = lst[0].simplified();
         newEQU.value = lst[2].simplified();
         assembler.pushbackEqu(newEQU);
     }
-    // 否则，类型错误
     else
         assembler.setErrorno(DFORMAT_ERROR);
 }
 
 /*
- * 按行读取缓冲区内容，并进行标准化
+ * 对出现.text和.data之前的内容进行预处理
+ * 主要是跨行注释和宏，遇到上述两标志后即预处理终止
  */
-void Mainwindow::lineProcess() {
-    valid = 0;
-    bool text_flag = false;
-    bool data_flag = false;
-    int textStartlineNo = MAX_LINE_NUM;
-    int dataStartlineNo = MAX_LINE_NUM;
-    int lineCnt = 0;    // 表示正准备处理的行号，从0开始计数
-    int annote_cnt = 0; // 开头注释行所占行数
-    // 存在多行注释时
-    if (input[0].contains("/*", Qt::CaseInsensitive)) {
-        // 跳过多行注释中间部分
-        while (true) {
-            if (input[annote_cnt].contains("*/", Qt::CaseInsensitive))
-                break;
-            annote_cnt++;
+void Mainwindow::preProcess() {
+    /*
+     * 当前行一直处于预处理阶段
+     * 直到碰到.text或.data
+     */
+    int upper = input.size();
+    while ((!input[lineCnt].contains(".text", Qt::CaseSensitive))
+           && (!input[lineCnt].contains(".data", Qt::CaseSensitive))
+           && (lineCnt < upper))
+    {
+        /*
+         * 存在多行注释时，跳过中间部分，最后行数额外+1
+         * 暂不考虑预处理阶段的多行注释同行有其它有效内容
+         */
+        if (input[lineCnt].contains("/*", Qt::CaseInsensitive)) {
+            // 跳过多行注释中间部分
+            while (true) {
+                if (input[lineCnt].contains("*/", Qt::CaseInsensitive))
+                    break;
+                lineCnt++;
+            }
+            lineCnt++;
         }
+
+        /*
+         * 存在宏时，开始填写宏结构体
+         * 第一行定义宏名、macro关键字、变量表
+         * 接下来是其指令行
+         * 当遇到endm时表明宏结束
+         */
+        if (input[lineCnt].contains("macro", Qt::CaseInsensitive)) {
+            QList<QString> lst = input[lineCnt].split(" ");
+            QList<QString> var_lst = lst[2].split(",");
+            struct Assembler::macro newmacro;
+            newmacro.name = lst[0].simplified().toLower();
+            newmacro.var_num = var_lst.size();
+            for (int i = 0; i < var_lst.size(); i++)
+                newmacro.var_list.push_back(var_lst[i].simplified());
+            lineCnt++;
+            newmacro.inst_num = 0;
+            while (!input[lineCnt].contains("endm", Qt::CaseInsensitive)) {
+                newmacro.inst_list.push_back(input[lineCnt++].simplified());
+                newmacro.inst_num++;
+            }
+            assembler.pushbackMacro(newmacro);
+        }
+
+        lineCnt++;
     }
 
-    // .text或.data必须单独一行
-    lineCnt = annote_cnt ? annote_cnt + 1 : 0;
-    // 匹配代码段、数据段的起始标志
-    if (input[lineCnt].mid(0, 5) == ".text") {
+    /*
+     * 匹配代码段、数据段的起始标志
+     * .text或.data必须独占一行
+     * 在多行注释、宏之后，必然是.text或.data，否则格式有误
+     */
+    QString first_flag = input[lineCnt].simplified().mid(0, 5);
+    if (first_flag == ".text") {
         text_flag = true;
         textStartlineNo = lineCnt;
         lineCnt++;
     }
-    else if (input[lineCnt].mid(0, 5) == ".data") {
+    else if (first_flag == ".data") {
         data_flag = true;
         dataStartlineNo = lineCnt;
         lineCnt++;
     }
-    else {
-        // 第一行必然是.text或.data，否则格式有误
+    else
         assembler.setErrorno(SEG_ERROR);
-        return ;
-    }
+
+    return ;
+}
+
+/*
+ * 按行读取缓冲区内容，并进行标准化
+ * 如果后面存在冗余的.text和.data也认为格式有误
+ * 正文部分需要考虑跨行注释前后同行中，是否存在有效内容
+ */
+void Mainwindow::lineProcess() {
+    preProcess();
 
     for (uint i = lineCnt; i < input.size(); i++) {
-        // 标志检测，若出现冗余则有错
         if (!text_flag && input[i].mid(0, 5) == ".text") {
             text_flag = true;
             textStartlineNo = lineCnt;
@@ -250,7 +362,6 @@ void Mainwindow::lineProcess() {
         }
 
         // 存在多行注释时
-        // 跳过多行注释中间部分
         if (input[i].contains("/*", Qt::CaseInsensitive)) {
             int idx = input[i].indexOf("/*");
             input[i] = input[i].left(idx);
@@ -266,30 +377,37 @@ void Mainwindow::lineProcess() {
                 tmp++;
             }
         }
-        // 代码段处理
+
+        /*
+         * 1. 代码行处理
+         * 2. 数据行处理
+         */
         if ((text_flag && !data_flag && textStartlineNo < dataStartlineNo)
             || (text_flag && data_flag && textStartlineNo > dataStartlineNo))
             instProcess(input[i], lineCnt);
-        // 数据段处理
+
         else if ((data_flag && !text_flag && dataStartlineNo < textStartlineNo)
                  || (text_flag && data_flag && textStartlineNo < dataStartlineNo))
             dataProcess(input[i]);
-        // 指令行出错
+
+        /*
+         * 1. 代码行检错
+         * 2. 数据行检错
+         */
         if (assembler.getErrorno() != NO_ERROR && assembler.getErrorno() != DFORMAT_ERROR) {
             assembler.setErrorLine(debugger->stdinput.back().lineno);
             assembler.setErrorInst(debugger->stdinput.size() - 1);
             return ;
         }
-        // 数据行出错
         else if (assembler.getErrorno() == DFORMAT_ERROR) {
             assembler.setErrorLine(lineCnt + 1);
             assembler.setErrorInst(-1);
             return ;
         }
-        // 否则总行数+1
         else
             lineCnt++;
     }
+
     // 程序里必须有.text，否则有错
     if (text_flag == false) {
         assembler.setErrorno(MISS_TEXTSEG);
@@ -299,17 +417,18 @@ void Mainwindow::lineProcess() {
 
 /*
  * 对标准化后的内容进行翻译
+ * 该语句无错误才推入输出缓冲区
+ *  若发现错误就提前退出，并取出该指令
  */
 void Mainwindow::transCode() {
     for (int i = 0; i < valid; i++) {
         QString result = assembler.asm2Machine(debugger->stdinput[i]);
         errorDetect(result);
-        // 该语句无错误才推入输出缓冲区
+
         if (assembler.getErrorno() == NO_ERROR) {
             output.push_back(result);
             output[i] = assembler.bi2Hex(output[i]);
         }
-        // 翻译过程发现错误就提前退出，并取出该指令
         else {
             assembler.setErrorInst(i);
             assembler.setErrorLine(debugger->stdinput[i].lineno);

@@ -6,7 +6,7 @@ int main(int argc, char *argv[])
     qputenv("QT_AUTO_SCREEN_SCALE_FACTOR", "1");
     QApplication a(argc, argv);
     Mainwindow w;
-    w.setWindowTitle(QStringLiteral("LoongSonAssembler v2.3"));
+    w.setWindowTitle(QStringLiteral("LoongSonAssembler"));
     w.show();
     return a.exec();
 }

@@ -51,6 +51,7 @@ private:
      */
     void workspaceClear();                              // 清空堆栈
     void readInput();                                   // 读取输入
+    void preProcess();                                  // 预处理
     void lineProcess();                                 // 按行处理
     void instProcess(QString input, int lineCnt);       // 指令处理
     void dataProcess(QString input);                    // 数据处理
@@ -87,10 +88,28 @@ private:
     void refreshDisplay();              // Debugger界面刷新
     void refreshWholeMem();             // Debugger主存刷新
     void refreshMemLine(int addr);      // 刷新某一行内容
+
+    /*
+     * 翻译功能所需的私有成员
+     * 有效指令数
+     * 行数
+     * 已汇编标志
+     * 数据起始地址
+     * .text出现标志
+     * .data出现标志
+     * 代码部分起始行号
+     * 数据部分起始行号
+     */
     int valid;
+    int lineCnt;
     bool has_assembled;
     int data_addr;
-
+    bool text_flag;
+    bool data_flag;
+    bool has_word;
+    bool has_space;
+    int textStartlineNo;
+    int dataStartlineNo;
 
 public slots:
     void trigerMenu(QAction* act);

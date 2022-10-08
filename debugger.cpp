@@ -62,7 +62,7 @@ int Debugger::step(Assembler assembler) {
     // 指令在其类型中的位序
     int idx = 0;
     // 可能用到的寄存器号
-    int rd, rj, rk;
+    int rd = 0, rj = 0, rk = 0;
     rd = Assembler::getRegID(lst[0].simplified());
     if (inst_name != "syscall" && inst_name != "break" && inst_name != "b" && inst_name != "bl"
             && type != _2R && type != _1R_I20 && type != _BAR) {
@@ -70,7 +70,7 @@ int Debugger::step(Assembler assembler) {
         rk = Assembler::getRegID(lst[2].simplified());
     }
     // 可能用到的立即数
-    int imm, code;
+    int imm = 0, code = 0;
     if (lst[0].mid(0, 2) == "0x")
         code = Assembler::hex2Int(lst[0].simplified());
     else

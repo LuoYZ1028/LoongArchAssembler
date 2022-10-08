@@ -296,7 +296,7 @@ void Mainwindow::dataOutput_coe() {
         }
     }
     QFileDialog fileDialog;
-    QString fileName = fileDialog.getSaveFileName(this, tr("选择文件"), TEST_DIR, tr("Text File(*.txt)"));
+    QString fileName = fileDialog.getSaveFileName(this, tr("选择文件"), TEST_DIR, tr("COE File(*.coe)"));
     if (fileName == "")
         return;
     QFile file(fileName);

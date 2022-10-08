@@ -467,11 +467,9 @@ void Mainwindow::on_asm_input_textChanged() {
 void Mainwindow::on_actionAbout_triggered() {
     QMessageBox::about(this, tr("About LoongArch Assembler"),
                     tr("<p><b>LoongArch Assembler</b></p> " \
-                       "<p>自带Debug功能的汇编代码转16进制机器码的汇编器</p>" \
                        "<p><strong>Created by 罗翊洲 at 2022</strong></p>" \
-                       "<p>Email: 1713700496@qq.com</p>" \
                        "<p>哈尔滨工业大学（深圳）计算机科学与技术学院</p>" \
-                       "<p><em>version 2.3</em></p>" \
+                       "<p>Email: 1713700496@qq.com</p>" \
                        "<a href=\"https://github.com/LuoYZ1028/LoongArchAssembler\" target=\"_red\">仓库链接</a>" \
                        ""));
 }
