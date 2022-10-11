@@ -18,6 +18,7 @@ public:
 
 protected:
     void highlightBlock(const QString &text) override;
+    void highlightmacro(const QString &text);
 
 private:
     /*
@@ -43,6 +44,7 @@ private:
     QTextCharFormat quotationFormat;
     QTextCharFormat functionFormat;
     QTextCharFormat constFormat;
+    QTextCharFormat macroFormat;
 };
 
 #endif // HIGHLIGHTER_H

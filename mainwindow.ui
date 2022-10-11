@@ -63,7 +63,7 @@
        <enum>QTabWidget::Triangular</enum>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>0</number>
       </property>
       <property name="iconSize">
        <size>
@@ -950,7 +950,7 @@
      <x>0</x>
      <y>0</y>
      <width>1170</width>
-     <height>30</height>
+     <height>29</height>
     </rect>
    </property>
    <property name="font">
@@ -961,10 +961,10 @@
    <widget class="QMenu" name="menuFile">
     <property name="geometry">
      <rect>
-      <x>339</x>
-      <y>120</y>
-      <width>176</width>
-      <height>115</height>
+      <x>346</x>
+      <y>119</y>
+      <width>197</width>
+      <height>114</height>
      </rect>
     </property>
     <property name="sizeIncrement">
@@ -992,14 +992,14 @@
    <widget class="QMenu" name="menuSave">
     <property name="geometry">
      <rect>
-      <x>385</x>
-      <y>120</y>
-      <width>159</width>
-      <height>115</height>
+      <x>391</x>
+      <y>119</y>
+      <width>180</width>
+      <height>114</height>
      </rect>
     </property>
     <property name="title">
-     <string>Save</string>
+     <string>Result</string>
     </property>
     <addaction name="actionSavetxt"/>
     <addaction name="separator"/>
@@ -1019,6 +1019,8 @@
     </property>
     <addaction name="actionAbout"/>
     <addaction name="separator"/>
+    <addaction name="separator"/>
+    <addaction name="actionDocument"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuSave"/>
@@ -1049,10 +1051,11 @@
    </attribute>
    <addaction name="actionOpenfile"/>
    <addaction name="actionSavefile"/>
+   <addaction name="actionSaveOther"/>
    <addaction name="separator"/>
    <addaction name="actionAssemble"/>
    <addaction name="actionSaveresult"/>
-   <addaction name="actionSavedata"/>
+   <addaction name="actionOutputDatacoe"/>
    <addaction name="separator"/>
    <addaction name="actionRun"/>
    <addaction name="actionStep"/>
@@ -1064,7 +1067,7 @@
   <action name="actionOpentxt">
    <property name="icon">
     <iconset resource="myimages.qrc">
-     <normaloff>:/ICON/ICON/open_icon.ico</normaloff>:/ICON/ICON/open_icon.ico</iconset>
+     <normaloff>:/ICON/ICON/save_icon.ico</normaloff>:/ICON/ICON/save_icon.ico</iconset>
    </property>
    <property name="text">
     <string>读取*.txt文件</string>
@@ -1079,7 +1082,7 @@
   <action name="actionOpenasm">
    <property name="icon">
     <iconset resource="myimages.qrc">
-     <normaloff>:/ICON/ICON/open_icon.ico</normaloff>:/ICON/ICON/open_icon.ico</iconset>
+     <normaloff>:/ICON/ICON/save_icon.ico</normaloff>:/ICON/ICON/save_icon.ico</iconset>
    </property>
    <property name="text">
     <string>读取*.asm文件</string>
@@ -1127,7 +1130,7 @@
   <action name="actionOpenfile">
    <property name="icon">
     <iconset resource="myimages.qrc">
-     <normaloff>:/ICON/ICON/open_icon.ico</normaloff>:/ICON/ICON/open_icon.ico</iconset>
+     <normaloff>:/ICON/ICON/save_icon.ico</normaloff>:/ICON/ICON/save_icon.ico</iconset>
    </property>
    <property name="text">
     <string>openfile</string>
@@ -1142,7 +1145,7 @@
   <action name="actionSavefile">
    <property name="icon">
     <iconset resource="myimages.qrc">
-     <normaloff>:/ICON/ICON/save_icon.ico</normaloff>:/ICON/ICON/save_icon.ico</iconset>
+     <normaloff>:/ICON/ICON/save.ico</normaloff>:/ICON/ICON/save.ico</iconset>
    </property>
    <property name="text">
     <string>savefile</string>
@@ -1241,18 +1244,6 @@
     <string>Esc</string>
    </property>
   </action>
-  <action name="actionSavedata">
-   <property name="icon">
-    <iconset resource="myimages.qrc">
-     <normaloff>:/ICON/ICON/data.ico</normaloff>:/ICON/ICON/data.ico</iconset>
-   </property>
-   <property name="text">
-    <string>savedata</string>
-   </property>
-   <property name="toolTip">
-    <string>保存数据变量</string>
-   </property>
-  </action>
   <action name="actionAbout">
    <property name="icon">
     <iconset resource="myimages.qrc">
@@ -1275,6 +1266,33 @@
    </property>
    <property name="toolTip">
     <string>以coe格式导出变量数据</string>
+   </property>
+  </action>
+  <action name="actionSaveOther">
+   <property name="icon">
+    <iconset resource="myimages.qrc">
+     <normaloff>:/ICON/ICON/open_icon.ico</normaloff>:/ICON/ICON/open_icon.ico</iconset>
+   </property>
+   <property name="text">
+    <string>SaveOther</string>
+   </property>
+   <property name="toolTip">
+    <string>文件另存为</string>
+   </property>
+  </action>
+  <action name="actionDocument">
+   <property name="icon">
+    <iconset resource="myimages.qrc">
+     <normaloff>:/ICON/ICON/document.png</normaloff>:/ICON/ICON/document.png</iconset>
+   </property>
+   <property name="text">
+    <string>帮助文档</string>
+   </property>
+   <property name="toolTip">
+    <string>打开用户帮助文档(Ctrl+H)</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+H</string>
    </property>
   </action>
  </widget>

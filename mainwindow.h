@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QCompleter>
 #include <QTextDocument>
 #include <QTextCursor>
 #include <QScrollBar>
@@ -70,6 +71,7 @@ private:
     QString filename;           // 打开文件名
     void fileInput();           // 导入txt或asm格式
     void fileSave();            // 保存当前编辑内容
+    void fileSaveOther();       // 当前编辑内容另存为
     void fileInput_txt();       // 导入txt格式
     void fileInput_asm();       // 导入asm格式
     void fileOutput_txt();      // 导出txt格式
@@ -124,7 +126,6 @@ private slots:
     void on_actionSavefile_triggered();
     void on_actionAbout_triggered();
     void on_actionAssemble_triggered();
-    void on_actionSavedata_triggered();
     void on_actionSaveresult_triggered();
     void on_actionRun_triggered();
     void on_actionStep_triggered();
@@ -136,6 +137,8 @@ private slots:
     void on_asm_input_textChanged();
     void on_actionOutputDatacoe_triggered();
     void on_actionOutputDatatxt_triggered();
+    void on_actionSaveOther_triggered();
+    void on_actionDocument_triggered();
 };
 
 #endif // MAINWINDOW_H

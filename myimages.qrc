@@ -15,5 +15,7 @@
         <file>ICON/data.ico</file>
         <file>ICON/main_icon.ico</file>
         <file>ICON/about.png</file>
+        <file>ICON/save.ico</file>
+        <file>ICON/document.png</file>
     </qresource>
 </RCC>

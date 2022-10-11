@@ -27,9 +27,9 @@ Mainwindow::Mainwindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::Mainwi
     ui->asm_input->mergeCurrentCharFormat(fmt);
     ui->text_output->mergeCurrentCharFormat(fmt);
     // 黑底白字
-    ui->asm_input->setStyleSheet("background:black;color:white");
-    ui->asm_input->setTabStopWidth(80);
-    ui->text_output->setStyleSheet("background:black;color:white");
+//    ui->asm_input->setStyleSheet("background:black;color:white");
+//    ui->asm_input->setTabStopWidth(80);
+//    ui->text_output->setStyleSheet("background:black;color:white");
     // 间隔行颜色差分
     ui->output_table->setAlternatingRowColors(true);
     ui->output_table->setStyleSheet("alternate-background-color:#455364;");
@@ -46,6 +46,7 @@ Mainwindow::Mainwindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::Mainwi
     // 视角拉倒第一页，且高亮当前行
     ui->tabWidget->setCurrentIndex(0);
     highlightCurrentLine();
+
 }
 
 Mainwindow::~Mainwindow() {
@@ -180,11 +181,10 @@ void Mainwindow::highlightDebuggerLine_data() {
     ui->memoryText->setExtraSelections(extraSelections);
 }
 
-// 切换到debugger界面
+// 当前内容未汇编时，若切换界面，则弹出提示并强制返回
 void Mainwindow::on_tabWidget_tabBarClicked(int index) {
     if ((index == 2 || index == 1) && has_assembled == false) {
         QMessageBox::warning(this, tr("警告"), tr("当前代码尚未Assemble，请先使用Build(F5)！"));
-        return ;
     }
     else if ((index == 2 || index == 1) && assembler.getErrorno() != NO_ERROR) {
         QMessageBox::warning(this, tr("警告"), tr("代码有Error，请先修改您的代码然后重新Build(F5)！"));
@@ -200,6 +200,11 @@ void Mainwindow::on_actionOpenfile_triggered() {
 // 保存文件按钮
 void Mainwindow::on_actionSavefile_triggered() {
     fileSave();
+    return ;
+}
+
+void Mainwindow::on_actionSaveOther_triggered() {
+    fileSaveOther();
     return ;
 }
 
@@ -223,7 +228,7 @@ void Mainwindow::on_actionAssemble_triggered() {
     highlightCurrentLine();
 }
 
-// 以coe形式保存文件
+// 以coe形式保存结果
 void Mainwindow::on_actionSaveresult_triggered() {
     fileOutput_coe();
     return ;
@@ -232,12 +237,6 @@ void Mainwindow::on_actionSaveresult_triggered() {
 // 以txt形式保存数据变量
 void Mainwindow::on_actionOutputDatatxt_triggered() {
     dataOutput_txt();
-    return ;
-}
-
-// 以coe形式保存数据变量
-void Mainwindow::on_actionSavedata_triggered() {
-    dataOutput_coe();
     return ;
 }
 
@@ -461,6 +460,7 @@ void Mainwindow::on_enableBP_toggled(bool checked) {
 // 文本改变时，撤销之前的已汇编标志
 void Mainwindow::on_asm_input_textChanged() {
     has_assembled = false;
+    ui->tabWidget->setTabText(0, QString("Edit *"));
 }
 
 // 关于我的信息
@@ -472,4 +472,9 @@ void Mainwindow::on_actionAbout_triggered() {
                        "<p>Email: 1713700496@qq.com</p>" \
                        "<a href=\"https://github.com/LuoYZ1028/LoongArchAssembler\" target=\"_red\">仓库链接</a>" \
                        ""));
+}
+
+void Mainwindow::on_actionDocument_triggered() {
+    QMessageBox::about(this, tr("User's Document Link"),
+                       tr("<strong><a href=\"https://luoyz1028.github.io/myBlog/2022/10/11/LoongArch32%E4%BD%8D%E6%B1%87%E7%BC%96%E5%99%A8%E4%BD%BF%E7%94%A8%E6%96%87%E6%A1%A3/\" target=\"_red\">文档连接</a></strong>"));
 }

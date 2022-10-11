@@ -19,6 +19,17 @@ Highlighter::Highlighter(QTextDocument *parent) : QSyntaxHighlighter(parent)
     rule.format = classFormat;
     highlightingRules.append(rule);
 
+    // macro宏
+    macroFormat.setFontItalic(true);
+    color = QColor(Qt::white).lighter(150);
+    macroFormat.setForeground(color);
+    rule.pattern = QRegularExpression("macro");
+    rule.format = macroFormat;
+    highlightingRules.append(rule);
+    rule.pattern = QRegularExpression("endm");
+    rule.format = macroFormat;
+    highlightingRules.append(rule);
+
     // 关键字高亮设置
     keywordFormat.setForeground(Qt::green);
     keywordFormat.setFontWeight(QFont::Bold);

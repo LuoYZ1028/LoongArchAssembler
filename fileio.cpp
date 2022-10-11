@@ -30,12 +30,58 @@ void Mainwindow::fileInput() {
         QString str = "Open File " + filename + " fail!";
         ui->text_output->append(str);
     }
+    ui->tabWidget->setTabText(0, QString("Edit"));
 }
 
 /*
  * 保存当前编辑内容
  */
 void Mainwindow::fileSave() {
+    QString str = ui->asm_input->toPlainText();
+    str = str.toUtf8();
+    // 若原本不存在该文件
+    if (filename == "") {
+        QFileDialog fileDialog;
+        QString fileName = fileDialog.getSaveFileName(this, tr("选择文件"), TEST_DIR, tr("ASM File(*.asm)"));
+        if (fileName == "") {
+            QString str = "Save Cancelled!";
+            ui->text_output->append(str);
+            return ;
+        }
+        QFile file(fileName);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QMessageBox::warning(this, tr("错误"), tr("打开文件失败"));
+            return ;
+        } else {
+            QTextStream textStream(&file);
+            textStream << str;
+            QMessageBox::information(this, tr("提示"), tr("保存文件成功"));
+            file.close();
+        }
+        str = "Save File " + fileName + " success!";
+    }
+    // 否则直接存入
+    else {
+        QFile file(filename);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QMessageBox::warning(this, tr("错误"), tr("打开文件失败"));
+            return ;
+        } else {
+            QTextStream textStream(&file);
+            textStream << str;
+            QMessageBox::information(this, tr("提示"), tr("保存文件成功"));
+            file.close();
+        }
+        str = "Save File " + filename + " success!";
+    }
+    ui->tabWidget->setTabText(0, QString("Edit"));
+    ui->text_output->append(str);
+}
+
+/*
+ * 当前编辑内容另存为
+ */
+void Mainwindow::fileSaveOther() {
     QString str = ui->asm_input->toPlainText();
     str = str.toUtf8();
     QFileDialog fileDialog;
@@ -56,6 +102,7 @@ void Mainwindow::fileSave() {
         file.close();
     }
     str = "Save File " + fileName + " success!";
+    ui->tabWidget->setTabText(0, QString("Edit"));
     ui->text_output->append(str);
 }
 
@@ -83,6 +130,7 @@ void Mainwindow::fileInput_txt() {
         QString str = "Open File " + filename + " fail!";
         ui->text_output->append(str);
     }
+    ui->tabWidget->setTabText(0, QString("Edit"));
 }
 
 /*
@@ -103,6 +151,7 @@ void Mainwindow::fileInput_asm() {
         QString str = "Open File " + filename + " fail!";
         ui->text_output->append(str);
     }
+    ui->tabWidget->setTabText(0, QString("Edit"));
 }
 
 /*

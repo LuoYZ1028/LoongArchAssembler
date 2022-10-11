@@ -1,3 +1,6 @@
+## LoongArchAssembler v2.6
++ Add User's help document, it's a hyperlink to one of my personal blog site.
+
 ## LoongArchAssembler v2.5
 + Support Macro function now! Although the error detection function of it is still weak...
 + Add Highlight of EQU and any word that might be a EQU name(like ABC, _A2, ...)
