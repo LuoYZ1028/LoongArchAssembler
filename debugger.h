@@ -32,6 +32,7 @@ private:
     int initPCaddr;     // PC初始值
     uint breakpoint;    // 断点表
     uint changedMemAddr;// 被修改的内存地址
+    bool memChanged;    // 内存是否因指令而被修改
     vector<meminfo>memoryText;  // 内存信息向量
      std::vector<QString>inst_vec;  //指令存储区，主要用于ir的内容显示
     ~Debugger();
@@ -60,6 +61,9 @@ public:
     uint getInstVecSize()                            { return inst_vec.size(); }
     QString getInst(int idx)                        { return inst_vec[idx]; }
     void pushbackInstVec(QString inst)              { inst_vec.push_back(inst); }
+
+    bool isMemChanged()                             { return memChanged; }
+
 
     /*
      * 三大基本功能，执行、单步、重置

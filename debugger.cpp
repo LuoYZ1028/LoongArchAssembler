@@ -55,6 +55,7 @@ int Debugger::run(Assembler assembler) {
 
 // 单步调试
 int Debugger::step(Assembler assembler) {
+    memChanged = false;
     ir = getInst(pc / 4);
     QList<QString> lst = stdinput[pc / 4].valueline.simplified().split(",");
     QString inst_name = stdinput[pc / 4].inst_name;
@@ -382,14 +383,17 @@ void Debugger::_2RI12_handler(int inst_idx, int rd, int rj, int imm) {
     // st.b
     case 10:
         setMemory(regfile[rj] + MASK(imm, I12), MASK(regfile[rd], 8));
+        memChanged = true;
         break;
     // st.h
     case 11:
         setMemory(regfile[rj] + MASK(imm, I12), MASK(regfile[rd], 16));
+        memChanged = true;
         break;
     // st.w
     case 12:
         setMemory(regfile[rj] + MASK(imm, I12), regfile[rd]);
+        memChanged = true;
         break;
     // ld.bu
     case 13:

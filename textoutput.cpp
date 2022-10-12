@@ -59,6 +59,9 @@ void Mainwindow::showInfo() {
     case RD_ZERO:
         error_info = "Error! Illegal position of $r0 or $zero!\n";
         break;
+    case MACRO_NAME_ERROR:
+        error_info = "Error! Missing Macro name!\n";
+        break;
     case SEG_ERROR:
         error_info = "Error! FIRST LINE must start with \".text\" or \".data\"!\n";
         break;

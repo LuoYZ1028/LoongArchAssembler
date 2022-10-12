@@ -111,25 +111,24 @@ void Mainwindow::instProcess(QString input, int lineCnt) {
                     break;
                 }
             }
-            QList<QString> var_list = str.split(" ");
-            str = var_list[1];
-            var_list = str.split(",");
-            if (var_list.size() < assembler.getMacroVarNum(idx)) {
-                assembler.setErrorno(MISS_AUG);
-                return ;
-            }
-            else if (var_list.size() > assembler.getMacroVarNum(idx)) {
-                assembler.setErrorno(REDUND_AUG);
-                return ;
-            }
+            QList<QString> var_list = str.split(",");
+            str = var_list[0];
+            tmp = str.simplified().split(" ");
+            var_list[0] = tmp[1];
 
             int line_num = assembler.getMacroInstNum(idx);
             for (int i = 0; i < line_num; i++) {
                 QString macro_inst = assembler.getMacroInst(idx, i).simplified();
                 tmp = macro_inst.split("#");
                 macro_inst = tmp[0];
-                for (int j = 0; j < var_list.size(); j++)
-                    macro_inst.replace(assembler.getMacroVar(idx, j), var_list[j]);
+
+                for (int j = 0; j < var_list.size(); j++) {
+                    QString tmp_var = assembler.getMacroVar(idx, j);
+                    if (macro_inst.indexOf(tmp_var) != -1) {
+                        macro_inst.replace(tmp_var, var_list[j].simplified());
+                    }
+                }
+
                 QList<QString>tmp_lst = macro_inst.simplified().split(" ");
                 int t = assembler.matchType(tmp_lst[0].toLower(), INST_MODE);
                 debugger->pushbackInstVec(macro_inst);
@@ -137,6 +136,7 @@ void Mainwindow::instProcess(QString input, int lineCnt) {
                 struct Assembler::instruction ins;
                 ins.type = t;
                 ins.inst_name = tmp_lst[0].toLower(); // 统一做小写转换
+
                 QString vline;
                 for (int j = 1; j < tmp_lst.size(); j++) {
                     if (tmp_lst[j].mid(0, 1) != "#") {
@@ -144,7 +144,7 @@ void Mainwindow::instProcess(QString input, int lineCnt) {
                         vline += tmp_lst[j];
                     }
                     else
-                        break;//读到注释则跳过本行
+                        break;  //读到注释则跳过本行
                 }
                 ins.valueline = vline;
                 ins.lineno = lineCnt + 1;
@@ -281,11 +281,26 @@ void Mainwindow::preProcess() {
          * 第一行定义宏名、macro关键字、变量表
          * 接下来是其指令行
          * 当遇到endm时表明宏结束
+         * 如果macro前面没名称
+         * 或指令中出现未定义的参数，都需要进行报错处理
          */
         if (input[lineCnt].contains("macro", Qt::CaseInsensitive)) {
-            QList<QString> lst = input[lineCnt].split(" ");
-            QList<QString> var_lst = lst[2].split(",");
+            QList<QString> lst = input[lineCnt].simplified().split(" ");
+
+            int name_idx = lst.indexOf(QString("macro"));
+            if (name_idx == 0 || lst[0] == "macro") {
+                assembler.setErrorno(MACRO_NAME_ERROR);
+                return ;
+            }
+
+            // 获取变量表
+            QList<QString> var_lst = input[lineCnt].simplified().split(",");
+            QString tmp = var_lst[0];
+            QList<QString> tmp_lst = tmp.simplified().split(" ");
+            var_lst[0] = tmp_lst[name_idx + 1];
+
             struct Assembler::macro newmacro;
+            newmacro.lineno = lineCnt + 1;
             newmacro.name = lst[0].simplified().toLower();
             newmacro.var_num = var_lst.size();
             for (int i = 0; i < var_lst.size(); i++)
@@ -326,11 +341,21 @@ void Mainwindow::preProcess() {
 
 /*
  * 按行读取缓冲区内容，并进行标准化
+ * 预处理出错时提前退出
  * 如果后面存在冗余的.text和.data也认为格式有误
  * 正文部分需要考虑跨行注释前后同行中，是否存在有效内容
  */
 void Mainwindow::lineProcess() {
     preProcess();
+    if (assembler.getErrorno() == MACRO_NAME_ERROR) {
+        assembler.setErrorLine(lineCnt + 1);
+        assembler.setErrorInst(-1);
+        return ;
+    }
+    else if (assembler.getErrorno() == SEG_ERROR) {
+        assembler.setErrorLine(-1);
+        return ;
+    }
 
     for (uint i = lineCnt; i < input.size(); i++) {
         if (!text_flag && input[i].mid(0, 5) == ".text") {

@@ -1,3 +1,6 @@
+## LoongArchAssembler v2.7
++ Repair parameter number's bug, now the assembler will perform macro instruction normally(I think ...)
+
 ## LoongArchAssembler v2.6
 + Add User's help document, it's a hyperlink to one of my personal blog site.
 

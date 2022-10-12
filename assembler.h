@@ -49,22 +49,23 @@
 /*
  * 错误类型
  */
-#define TYPE_ERROR      -1
-#define REGNO_ERROR     -2
-#define MISS_AUG        -3
-#define REDUND_AUG      -4
-#define UNKNOWN_ERROR   -5
-#define UNDEFINED_LABEL -6
-#define UNDEFINED_CONST -7
-#define UNDEFINED_VAR   -8
-#define DFORMAT_ERROR   -9
-#define RD_ZERO         -10
-#define SEG_ERROR       -100
-#define MISS_TEXTSEG    -101
-#define REDUND_TEXTSEG  -102
-#define REDUND_DATASEG  -103
-#define ORIGIN_ERROR    -104
-#define ORIGIN_VERROR   -105
+#define TYPE_ERROR          -1
+#define REGNO_ERROR         -2
+#define MISS_AUG            -3
+#define REDUND_AUG          -4
+#define UNKNOWN_ERROR       -5
+#define UNDEFINED_LABEL     -6
+#define UNDEFINED_CONST     -7
+#define UNDEFINED_VAR       -8
+#define DFORMAT_ERROR       -9
+#define RD_ZERO             -10
+#define MACRO_NAME_ERROR    -11
+#define SEG_ERROR           -100
+#define MISS_TEXTSEG        -101
+#define REDUND_TEXTSEG      -102
+#define REDUND_DATASEG      -103
+#define ORIGIN_ERROR        -104
+#define ORIGIN_VERROR       -105
 
 #define NO_ERROR        0
 
@@ -122,6 +123,7 @@ public:
 
     // 宏结构体，宏名+变量个数+指令个数+变量表+指令表
     struct macro {
+        int             lineno;
         QString         name;
         int             var_num;
         int             inst_num;
@@ -193,6 +195,7 @@ public:
     int getMacroInstNum(int idx)    { return macrolist[idx].inst_num; }
     QString getMacroInst(int i, int j)  { return macrolist[i].inst_list[j]; }
     QString getMacroVar(int i, int j)   { return macrolist[i].var_list[j]; }
+    int getMacroLineno(int idx)     { return macrolist[idx].lineno; }
     void pushbackMacro(struct macro newmacro);
 
 

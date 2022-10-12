@@ -298,7 +298,9 @@ void Mainwindow::on_actionStep_triggered() {
     }
     refreshDisplay();
     // 获取内存变更的真实地址
-    refreshMemLine(debugger->getChangedMemAddr());
+    if (debugger->isMemChanged())
+        refreshMemLine(debugger->getChangedMemAddr());
+    return ;
 }
 
 // Reset
@@ -476,5 +478,7 @@ void Mainwindow::on_actionAbout_triggered() {
 
 void Mainwindow::on_actionDocument_triggered() {
     QMessageBox::about(this, tr("User's Document Link"),
-                       tr("<strong><a href=\"https://luoyz1028.github.io/myBlog/2022/10/11/LoongArch32%E4%BD%8D%E6%B1%87%E7%BC%96%E5%99%A8%E4%BD%BF%E7%94%A8%E6%96%87%E6%A1%A3/\" target=\"_red\">文档连接</a></strong>"));
+                       tr("<p><b><a href=\"https://luoyz1028.github.io/myBlog/2022/10/11/" \
+                          "LoongArch32%E4%BD%8D%E6%B1%87%E7%BC%96%E5%99%A8%E4%BD%BF%E7%94%A8%E6%96%87%E6%A1%A3/\"" \
+                          "target=\"_red\">文档连接</a></b></p>"));
 }
