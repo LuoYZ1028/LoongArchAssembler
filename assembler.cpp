@@ -626,7 +626,7 @@ QString Assembler::_1RI20TypeASM(instruction input) {
     op = "0000000";
     if (input.inst_name == "lu12i.w")
         op = "0001010";
-    else if (input.inst_name == "pcaddu12i.w")
+    else if (input.inst_name == "pcaddu12i")
         op = "0001110";
 
     // 20bit整数转化
