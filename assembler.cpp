@@ -282,7 +282,7 @@ QString Assembler::_2RI8TypeASM(instruction input) {
     // 分为16进制和10进制两种情况，不排除宏常量的使用
     if(value[2].mid(0,2) == "0x")
         num = hex2Int(value[2]);
-    else if (s[0] <= '9' && s[0] >= '0')
+    else if ((s[0] <= '9' && s[0] >= '0') || value[2].mid(0, 1) == "-")
         num = value[2].toInt();
     else {
         bool match_flag = false;
@@ -374,9 +374,9 @@ QString Assembler::_2RI12TypeASM(instruction input) {
     QByteArray ascii = value[2].toLatin1(); // 转ASCII码
     s = ascii.data();
     // 分为16进制和10进制两种情况，不排除宏常量的使用
-    if(value[2].mid(0,2) == "0x")
+    if (value[2].mid(0, 2) == "0x")
         num = hex2Int(value[2]);
-    else if (s[0] <= '9' && s[0] >= '0')
+    else if ((s[0] <= '9' && s[0] >= '0') || value[2].mid(0, 1) == "-")
         num = value[2].toInt();
     else {
         bool match_flag = false;
@@ -437,9 +437,9 @@ QString Assembler::_2RI14TypeASM(instruction input) {
     QByteArray ascii = value[2].toLatin1(); // 转ASCII码
     s = ascii.data();
     // 分为16进制和10进制两种情况，不排除宏常量的使用
-    if(value[2].mid(0,2) == "0x")
+    if (value[2].mid(0, 2) == "0x")
         num = hex2Int(value[2]);
-    else if (s[0] <= '9' && s[0] >= '0')
+    else if ((s[0] <= '9' && s[0] >= '0') || value[2].mid(0, 1) == "-")
         num = value[2].toInt();
     else {
         bool match_flag = false;
@@ -519,7 +519,7 @@ QString Assembler::_2RI16TypeASM(instruction input, int position) {
         if (value[2].mid(0, 2) == "0x")
             imm16 = int2Binary(hex2Int(value[2]), 16, SIGNED);
         // 10进制地址
-        else if (s[0] <= '9' && s[0] >= '0')
+        else if ((s[0] <= '9' && s[0] >= '0') || value[2].mid(0, 1) == "-")
             imm16 = int2Binary(value[2].toInt(), 16, SIGNED);
         // 如果是借助标号或宏常量的间接跳转
         else {
@@ -577,7 +577,7 @@ QString Assembler::_2RI16TypeASM(instruction input, int position) {
             num_0 = value[0].toInt(NULL, 16);
             num_1 = num_0 >> 16;
         }
-        else if (s[0] <= '9' && s[0] >= '0'){
+        else if ((s[0] <= '9' && s[0] >= '0') || value[0].mid(0, 1) == "-") {
             num_0 = value[0].toInt();
             num_1 = num_0 >> 16;
         }
@@ -637,7 +637,7 @@ QString Assembler::_1RI20TypeASM(instruction input) {
     // 分为16进制和10进制两种情况，不排除宏常量的使用
     if(value[1].mid(0,2) == "0x")
         num = hex2Int(value[1]);
-    else if (s[0] <= '9' && s[0] >= '0')
+    else if ((s[0] <= '9' && s[0] >= '0') || value[1].mid(0, 1) == "-")
         num = value[1].toInt();
     else {
         bool match_flag = false;
@@ -698,7 +698,7 @@ QString Assembler::_BARTypeASM(instruction input) {
     // 分为16进制和10进制两种情况，不排除宏常量的使用
     if(value[0].mid(0,2) == "0x")
         num = hex2Int(value[0]);
-    else if (s[0] <= '9' && s[0] >= '0')
+    else if ((s[0] <= '9' && s[0] >= '0') || value[0].mid(0, 1) == "-")
         num = value[0].toInt();
     else {
         bool match_flag = false;
@@ -752,7 +752,7 @@ QString Assembler::_pseudoTypeASM(instruction input) {
         s = ascii.data();
         if(value[1].mid(0,2) == "0x")
             num = hex2Int(value[1]);
-        else if (s[0] <= '9' && s[0] >= '0')
+        else if ((s[0] <= '9' && s[0] >= '0') || value[1].mid(0, 1) == "-")
             num = value[1].toInt();
         else {
             bool match_flag = false;
